@@ -90,21 +90,26 @@ ActionMenu.propTypes = {
 };
 
 function BonusesManagement() {
+  // State for bonuses, external bonuses, and portals
   const [bonuses, setBonuses] = useState([]);
   const [externalBonuses, setExternalBonuses] = useState([]);
-  const [filteredExternalBonuses, setFilteredExternalBonuses] = useState([]); // For dynamic filtering
+  const [filteredExternalBonuses, setFilteredExternalBonuses] = useState([]);
   const [portals, setPortals] = useState([]);
+
+  // Dialog-related state
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [currentBonus, setCurrentBonus] = useState(null);
 
   const navigate = useNavigate();
 
+  // On component mount, fetch bonuses, external bonuses, and portals
   useEffect(() => {
     fetchBonuses();
     fetchExternalBonuses();
     fetchPortals();
   }, []);
 
+  // Fetch existing bonuses
   const fetchBonuses = async () => {
     try {
       const response = await axios.get(BONUSES_API, {
@@ -118,6 +123,7 @@ function BonusesManagement() {
     }
   };
 
+  // Fetch external bonuses
   const fetchExternalBonuses = async () => {
     try {
       const response = await axios.get(`${BONUSES_API}/external`, {
@@ -131,6 +137,7 @@ function BonusesManagement() {
     }
   };
 
+  // Fetch portals
   const fetchPortals = async () => {
     try {
       const response = await axios.get(PORTALS_API, {
@@ -144,7 +151,7 @@ function BonusesManagement() {
     }
   };
 
-  // Handles 'Add Bonus' button
+  // Handle "Add Bonus" button click
   const handleAddBonus = () => {
     setCurrentBonus({
       bonusId: null,
@@ -154,19 +161,22 @@ function BonusesManagement() {
       maxAmount: "",
       percentage: "",
       bonusType: "",
-      partnerBonusId: "", // Field for parent bonus ID
+      partnerBonusId: "", // field for parent bonus
     });
-    setFilteredExternalBonuses([]); // Reset filtered external bonuses on fresh add
+    setFilteredExternalBonuses([]); // reset filtered list
     setDialogOpen(true);
   };
 
-  // Edits an existing bonus
+  // Edit an existing bonus
   const handleEditBonus = (bonus) => {
     setCurrentBonus(bonus);
 
-    // Auto-filter external bonuses if existing bonus has a type
+    // If bonusType is set, auto-filter external bonuses
     if (bonus.bonusType) {
-      const filtered = externalBonuses.filter((ext) => ext.Type === parseInt(bonus.bonusType, 10));
+      // important: use extBonus.type (lowercase) from your API
+      const filtered = externalBonuses.filter(
+        (extBonus) => extBonus.type === parseInt(bonus.bonusType, 10)
+      );
       setFilteredExternalBonuses(filtered);
     } else {
       setFilteredExternalBonuses([]);
@@ -175,7 +185,7 @@ function BonusesManagement() {
     setDialogOpen(true);
   };
 
-  // Deletes a bonus
+  // Delete a bonus
   const handleDeleteBonus = async (bonusId) => {
     try {
       await axios.delete(`${BONUSES_API}/${bonusId}`, {
@@ -187,12 +197,12 @@ function BonusesManagement() {
     }
   };
 
-  // Saves (creates or updates) the current bonus
+  // Save bonus changes (create or update)
   const handleSaveBonus = async () => {
     const token = sessionStorage.getItem("token");
     try {
       if (currentBonus.bonusId) {
-        // Update existing bonus
+        // update existing bonus
         const response = await axios.put(`${BONUSES_API}/${currentBonus.bonusId}`, currentBonus, {
           headers: { Authorization: token },
         });
@@ -200,7 +210,7 @@ function BonusesManagement() {
           prev.map((b) => (b.bonusId === currentBonus.bonusId ? response.data : b))
         );
       } else {
-        // Create new bonus
+        // create new bonus
         const response = await axios.post(BONUSES_API, currentBonus, {
           headers: { Authorization: token },
         });
@@ -213,7 +223,7 @@ function BonusesManagement() {
     }
   };
 
-  // Bonuses table columns
+  // Define columns for the internal bonuses table
   const bonusColumns = [
     { Header: "Bonus ID", accessor: "bonusId" },
     { Header: "Name", accessor: "name" },
@@ -243,7 +253,7 @@ function BonusesManagement() {
     },
   ];
 
-  // External bonuses table columns
+  // Define columns for the external bonuses table
   const externalBonusColumns = [
     { Header: "ID", accessor: "id" },
     { Header: "Name", accessor: "name" },
@@ -260,7 +270,7 @@ function BonusesManagement() {
     },
   ];
 
-  // Transform the bonuses for DataTable
+  // Transform the internal bonuses data
   const bonusRows = bonuses.map((b) => ({
     bonusId: b.bonusId,
     name: b.name,
@@ -272,13 +282,13 @@ function BonusesManagement() {
     actions: b.bonusId,
   }));
 
-  // Transform the external bonuses for DataTable
-  const externalBonusRows = externalBonuses.map((b) => ({
-    id: b.id,
-    name: b.name,
-    description: b.description,
-    startDateTS: b.startDateTS,
-    endDateTS: b.endDateTS,
+  // Transform the external bonuses data
+  const externalBonusRows = externalBonuses.map((extB) => ({
+    id: extB.id,
+    name: extB.name,
+    description: extB.description,
+    startDateTS: extB.startDateTS,
+    endDateTS: extB.endDateTS,
   }));
 
   return (
@@ -286,7 +296,7 @@ function BonusesManagement() {
       <DashboardNavbar />
       <MDBox pt={6} pb={3}>
         <Grid container spacing={6}>
-          {/* Bonuses Table */}
+          {/* Internal Bonuses Table */}
           <Grid item xs={12}>
             <Card>
               <MDBox
@@ -373,6 +383,7 @@ function BonusesManagement() {
             value={currentBonus?.description || ""}
             onChange={(e) => setCurrentBonus({ ...currentBonus, description: e.target.value })}
           />
+
           {/* Portal Dropdown */}
           <FormControl fullWidth margin="normal" variant="outlined">
             <InputLabel id="portal-select-label">Portal</InputLabel>
@@ -389,6 +400,7 @@ function BonusesManagement() {
               ))}
             </Select>
           </FormControl>
+
           {/* Max Amount */}
           <TextField
             label="Max Amount"
@@ -400,10 +412,13 @@ function BonusesManagement() {
             inputProps={{ min: 0 }}
             onChange={(e) => {
               const val = parseFloat(e.target.value);
-              if (val >= 0) setCurrentBonus({ ...currentBonus, maxAmount: val });
+              if (val >= 0) {
+                setCurrentBonus({ ...currentBonus, maxAmount: val });
+              }
             }}
             helperText="Enter a positive number for max amount"
           />
+
           {/* Percentage */}
           <TextField
             label="Percentage"
@@ -421,6 +436,7 @@ function BonusesManagement() {
             }}
             helperText="Enter a value between 0 and 100"
           />
+
           {/* Bonus Type + Parent Bonus */}
           <FormControl fullWidth variant="outlined" margin="normal">
             <InputLabel id="bonus-type-label">Bonus Type</InputLabel>
@@ -429,11 +445,12 @@ function BonusesManagement() {
               value={currentBonus?.bonusType || ""}
               onChange={(e) => {
                 const type = e.target.value;
+                // reset partner bonus
                 setCurrentBonus({ ...currentBonus, bonusType: type, partnerBonusId: "" });
 
-                // Filter external bonuses to show only matching 'Type'
+                // Filter by 'type' from the external bonus response
                 const filtered = externalBonuses.filter(
-                  (extBonus) => extBonus.Type === parseInt(type, 10)
+                  (extBonus) => extBonus.type === parseInt(type, 10)
                 );
                 setFilteredExternalBonuses(filtered);
               }}
@@ -445,7 +462,7 @@ function BonusesManagement() {
             </Select>
           </FormControl>
 
-          {/* Parent Bonus Dropdown */}
+          {/* Conditionally show Parent Bonus dropdown if there's a filtered list */}
           {filteredExternalBonuses.length > 0 && (
             <FormControl fullWidth variant="outlined" margin="normal">
               <InputLabel id="parent-bonus-label">Parent Bonus</InputLabel>
@@ -453,13 +470,16 @@ function BonusesManagement() {
                 labelId="parent-bonus-label"
                 value={currentBonus?.partnerBonusId || ""}
                 onChange={(e) =>
-                  setCurrentBonus({ ...currentBonus, partnerBonusId: e.target.value })
+                  setCurrentBonus({
+                    ...currentBonus,
+                    partnerBonusId: e.target.value,
+                  })
                 }
                 label="Parent Bonus"
               >
                 {filteredExternalBonuses.map((eb) => (
-                  <MenuItem key={eb.Id} value={eb.Id}>
-                    {eb.Name}
+                  <MenuItem key={eb.id} value={eb.id}>
+                    {eb.name}
                   </MenuItem>
                 ))}
               </Select>
@@ -479,6 +499,7 @@ function BonusesManagement() {
   );
 }
 
+// Optional prop types for row objects
 BonusesManagement.propTypes = {
   row: PropTypes.shape({
     original: PropTypes.shape({
