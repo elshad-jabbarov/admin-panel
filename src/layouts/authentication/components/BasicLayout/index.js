@@ -32,14 +32,14 @@ import Footer from "layouts/authentication/components/Footer";
 function BasicLayout({ image, children }) {
   return (
     <PageLayout>
-      <DefaultNavbar
-        action={{
-          type: "external",
-          route: "https://creative-tim.com/product/material-dashboard-react",
-          label: "free download",
-          color: "dark",
-        }}
-      />
+      {/*<DefaultNavbar*/}
+      {/*  action={{*/}
+      {/*    type: "external",*/}
+      {/*    route: "https://creative-tim.com/product/material-dashboard-react",*/}
+      {/*    label: "free download",*/}
+      {/*    color: "dark",*/}
+      {/*  }}*/}
+      {/*/>*/}
       <MDBox
         position="absolute"
         width="100%"
