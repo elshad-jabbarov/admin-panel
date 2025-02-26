@@ -1,55 +1,52 @@
 import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
-import { IconButton, Menu, MenuItem } from "@mui/material";
+import { Card, Grid, IconButton, Menu, MenuItem, Snackbar, Alert } from "@mui/material";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
-import DataTable from "../../examples/Tables/DataTable";
-import MDButton from "../../components/MDButton";
-import MDBox from "../../components/MDBox";
-import MDTypography from "../../components/MDTypography";
-import axios from "axios";
+import axios, { extractErrorMessage } from "index";
 import { useNavigate } from "react-router-dom";
-import PortalFormModal from "./PortalFormModal"; // Import the modal for adding a new portal
 
+// Soft UI / custom components
+import MDBox from "components/MDBox";
+import MDTypography from "components/MDTypography";
+import MDButton from "components/MDButton";
+import DataTable from "examples/Tables/DataTable";
+
+// Layout containers
+import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
+import DashboardNavbar from "examples/Navbars/DashboardNavbar";
+import Footer from "examples/Footer";
+
+// Portal form modal
+import PortalFormModal from "./PortalFormModal";
+
+const PORTAL_API = "http://localhost:8080/api/portal";
+
+/**
+ * Action menu for each portal row.
+ */
 function ActionMenu({ portalId }) {
   const [anchorEl, setAnchorEl] = useState(null);
   const navigate = useNavigate();
 
-  const handleClick = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
+  const handleClick = (event) => setAnchorEl(event.currentTarget);
+  const handleClose = () => setAnchorEl(null);
 
   const handleRequestLog = () => {
-    console.log(`Request log for portal ${portalId}`);
     navigate(`/portals/${portalId}/logs`);
     handleClose();
   };
 
   return (
     <div style={{ position: "relative" }}>
-      <IconButton
-        aria-label="more"
-        aria-controls="long-menu"
-        aria-haspopup="true"
-        onClick={handleClick}
-      >
+      <IconButton onClick={handleClick}>
         <MoreVertIcon />
       </IconButton>
       <Menu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
         onClose={handleClose}
-        anchorOrigin={{
-          vertical: "top",
-          horizontal: "right",
-        }}
-        transformOrigin={{
-          vertical: "top",
-          horizontal: "right",
-        }}
+        anchorOrigin={{ vertical: "top", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
       >
         <MenuItem onClick={handleRequestLog}>Request Log</MenuItem>
       </Menu>
@@ -61,6 +58,9 @@ ActionMenu.propTypes = {
   portalId: PropTypes.number.isRequired,
 };
 
+/**
+ * Cell renderer for the Actions column.
+ */
 function ActionsCell({ row }) {
   return <ActionMenu portalId={row.original.id} />;
 }
@@ -73,9 +73,13 @@ ActionsCell.propTypes = {
   }).isRequired,
 };
 
+/**
+ * Main Portal Management component.
+ */
 function PortalManagement() {
   const [portals, setPortals] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchPortals();
@@ -83,74 +87,93 @@ function PortalManagement() {
 
   const fetchPortals = async () => {
     try {
-      const response = await axios.get("http://localhost:8080/api/portal", {
-        headers: {
-          Authorization: `${sessionStorage.getItem("token")}`,
-        },
+      const response = await axios.get(PORTAL_API, {
+        headers: { Authorization: sessionStorage.getItem("token") },
       });
       setPortals(response.data);
-    } catch (error) {
-      console.error("Error fetching portals:", error);
+    } catch (err) {
+      console.error("Error fetching portals:", err);
+      setError(extractErrorMessage(err));
     }
   };
 
-  const handleAddPortal = async (newPortal) => {
-    try {
-      const response = await axios.post("http://localhost:8080/api/portal", newPortal, {
-        headers: {
-          Authorization: `${sessionStorage.getItem("token")}`,
-        },
-      });
-      setPortals((prevPortals) => [...prevPortals, response.data]);
-      setShowModal(false); // Close modal after successful submission
-    } catch (error) {
-      console.error("Error adding portal:", error);
-    }
+  const handleAddPortal = (newPortal) => {
+    setPortals((prev) => [...prev, newPortal]);
+    setShowModal(false);
   };
 
   const columns = [
     { Header: "Domain Name", accessor: "domainName" },
     { Header: "Portal Type", accessor: "portalType" },
     { Header: "API Username", accessor: "apiUsername" },
-    { Header: "API Token", accessor: "apiToken" },
-    {
-      Header: "Actions",
-      accessor: "id",
-      Cell: ActionsCell,
-    },
+    { Header: "Actions", accessor: "id", Cell: ActionsCell },
   ];
 
   const rows = portals.map((portal) => ({
     domainName: portal.domainName,
     portalType: portal.portalType,
     apiUsername: portal.apiUsername,
-    apiToken: portal.apiToken,
     id: portal.id,
   }));
 
   return (
-    <MDBox>
-      <MDBox display="flex" justifyContent="space-between" alignItems="center" p={3}>
-        <MDTypography variant="h4">Portals</MDTypography>
-        <MDButton color="info" onClick={() => setShowModal(true)}>
-          Add New Portal
-        </MDButton>
+    <DashboardLayout>
+      <DashboardNavbar />
+      <MDBox pt={6} pb={3}>
+        <Grid container spacing={6}>
+          <Grid item xs={12}>
+            <Card>
+              <MDBox
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+                mx={2}
+                mt={-3}
+                py={3}
+                px={2}
+                variant="gradient"
+                bgColor="info"
+                borderRadius="lg"
+                coloredShadow="info"
+              >
+                <MDTypography variant="h6" color="white">
+                  Portals
+                </MDTypography>
+                <MDButton color="info" onClick={() => setShowModal(true)}>
+                  Add New Portal
+                </MDButton>
+              </MDBox>
+              <MDBox pt={3}>
+                <DataTable
+                  table={{ columns, rows }}
+                  entriesPerPage={{ defaultValue: 10, entries: [5, 10, 15, 20, 25] }}
+                  canSearch
+                  showTotalEntries
+                  isSorted
+                  pagination
+                />
+              </MDBox>
+            </Card>
+          </Grid>
+        </Grid>
       </MDBox>
-      <DataTable
-        table={{ columns, rows }}
-        entriesPerPage={{ defaultValue: 10, entries: [5, 10, 15, 20, 25] }}
-        canSearch
-        showTotalEntries
-        isSorted
-        pagination
-      />
+      <Footer />
+
       {showModal && (
-        <PortalFormModal
-          onClose={() => setShowModal(false)}
-          onSave={handleAddPortal} // Pass the function to save the new portal
-        />
+        <PortalFormModal onClose={() => setShowModal(false)} onSave={handleAddPortal} />
       )}
-    </MDBox>
+
+      <Snackbar
+        open={!!error}
+        autoHideDuration={6000}
+        onClose={() => setError(null)}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert onClose={() => setError(null)} severity="error" variant="filled">
+          {error}
+        </Alert>
+      </Snackbar>
+    </DashboardLayout>
   );
 }
 

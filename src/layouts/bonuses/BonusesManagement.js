@@ -1,69 +1,81 @@
 import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import {
-  Grid,
+  Button,
   Card,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
+  Grid,
   IconButton,
+  InputLabel,
   Menu,
   MenuItem,
-  Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
   Select,
-  InputLabel,
-  FormControl,
+  TextField,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
-import DataTable from "../../examples/Tables/DataTable";
-import MDBox from "../../components/MDBox";
-import MDTypography from "../../components/MDTypography";
-import axios from "axios";
+import axios, { extractErrorMessage } from "index";
 import { useNavigate } from "react-router-dom";
+
+// Soft UI components
+import MDBox from "components/MDBox";
+import MDTypography from "components/MDTypography";
+import DataTable from "examples/Tables/DataTable";
 import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
 import DashboardNavbar from "examples/Navbars/DashboardNavbar";
 import Footer from "examples/Footer";
 
+// API Endpoints
 const BONUSES_API = "http://localhost:8080/api/bonuses";
 const PORTALS_API = "http://localhost:8080/api/portal";
 
+/**
+ * Action Menu for each bonus row:
+ * - View Details
+ * - Edit
+ * - Delete
+ */
 function ActionMenu({ bonus, onEdit, onDelete }) {
   const [anchorEl, setAnchorEl] = useState(null);
   const navigate = useNavigate();
 
-  const handleClick = (event) => {
-    setAnchorEl(event.currentTarget);
+  const handleMenuOpen = (e) => {
+    setAnchorEl(e.currentTarget);
   };
-  const handleClose = () => {
+  const handleMenuClose = () => {
     setAnchorEl(null);
   };
 
   const handleViewDetails = () => {
     navigate(`/bonuses/${bonus.bonusId}/details`);
-    handleClose();
+    handleMenuClose();
   };
 
   const handleEdit = () => {
     onEdit(bonus);
-    handleClose();
+    handleMenuClose();
   };
 
   const handleDelete = () => {
     onDelete(bonus.bonusId);
-    handleClose();
+    handleMenuClose();
   };
 
   return (
-    <div>
-      <IconButton onClick={handleClick}>
+    <>
+      <IconButton onClick={handleMenuOpen}>
         <MoreVertIcon />
       </IconButton>
       <Menu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
-        onClose={handleClose}
+        onClose={handleMenuClose}
         anchorOrigin={{ vertical: "top", horizontal: "right" }}
         transformOrigin={{ vertical: "top", horizontal: "right" }}
       >
@@ -71,7 +83,7 @@ function ActionMenu({ bonus, onEdit, onDelete }) {
         <MenuItem onClick={handleEdit}>Edit</MenuItem>
         <MenuItem onClick={handleDelete}>Delete</MenuItem>
       </Menu>
-    </div>
+    </>
   );
 }
 
@@ -89,69 +101,94 @@ ActionMenu.propTypes = {
   onDelete: PropTypes.func.isRequired,
 };
 
+/**
+ * Bonuses Management Page
+ * Handles CRUD operations for "bonuses", plus optional partner bonus link.
+ */
 function BonusesManagement() {
-  // State for bonuses, external bonuses, and portals
+  // Data states
   const [bonuses, setBonuses] = useState([]);
   const [externalBonuses, setExternalBonuses] = useState([]);
   const [filteredExternalBonuses, setFilteredExternalBonuses] = useState([]);
   const [portals, setPortals] = useState([]);
 
-  // Dialog-related state
+  // Loading & error states
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Dialog & validation states
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [currentBonus, setCurrentBonus] = useState(null);
+  const [validationAttempted, setValidationAttempted] = useState(false);
 
   const navigate = useNavigate();
 
-  // On component mount, fetch bonuses, external bonuses, and portals
+  /**********************************************************
+   * EFFECTS - FETCH ALL DATA ON MOUNT
+   **********************************************************/
   useEffect(() => {
-    fetchBonuses();
-    fetchExternalBonuses();
-    fetchPortals();
+    const token = sessionStorage.getItem("token");
+    if (!token) {
+      setError("Authorization token not found in sessionStorage.");
+      setLoading(false);
+      return;
+    }
+
+    Promise.all([fetchBonuses(token), fetchExternalBonuses(token), fetchPortals(token)])
+      .catch((err) => {
+        console.error("Error loading initial data:", err);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
-  // Fetch existing bonuses
-  const fetchBonuses = async () => {
+  /**
+   * Fetch the list of existing (internal) bonuses.
+   */
+  const fetchBonuses = async (token) => {
     try {
       const response = await axios.get(BONUSES_API, {
-        headers: {
-          Authorization: sessionStorage.getItem("token"),
-        },
+        headers: { Authorization: token },
       });
       setBonuses(response.data);
-    } catch (error) {
-      console.error("Error fetching bonuses:", error);
+    } catch (err) {
+      setError(extractErrorMessage(err));
     }
   };
 
-  // Fetch external bonuses
-  const fetchExternalBonuses = async () => {
+  /**
+   * Fetch external bonuses if needed for referencing in "partnerBonusId".
+   */
+  const fetchExternalBonuses = async (token) => {
     try {
       const response = await axios.get(`${BONUSES_API}/external`, {
-        headers: {
-          Authorization: sessionStorage.getItem("token"),
-        },
+        headers: { Authorization: token },
       });
       setExternalBonuses(response.data);
-    } catch (error) {
-      console.error("Error fetching external bonuses:", error);
+    } catch (err) {
+      console.error("Error fetching external bonuses:", err);
+      // Do not block the page if external bonuses are missing.
+      setError(extractErrorMessage(err));
     }
   };
 
-  // Fetch portals
-  const fetchPortals = async () => {
+  /**
+   * Fetch the list of portals (for the Portal dropdown).
+   */
+  const fetchPortals = async (token) => {
     try {
       const response = await axios.get(PORTALS_API, {
-        headers: {
-          Authorization: sessionStorage.getItem("token"),
-        },
+        headers: { Authorization: token },
       });
       setPortals(response.data);
-    } catch (error) {
-      console.error("Error fetching portals:", error);
+    } catch (err) {
+      setError(extractErrorMessage(err));
     }
   };
 
-  // Handle "Add Bonus" button click
+  /**********************************************************
+   * CRUD HANDLERS
+   **********************************************************/
+  // "Add Bonus" initiates a blank form
   const handleAddBonus = () => {
     setCurrentBonus({
       bonusId: null,
@@ -161,21 +198,22 @@ function BonusesManagement() {
       maxAmount: "",
       percentage: "",
       bonusType: "",
-      partnerBonusId: "", // field for parent bonus
+      partnerBonusId: "",
     });
-    setFilteredExternalBonuses([]); // reset filtered list
+    setFilteredExternalBonuses([]);
+    setValidationAttempted(false);
     setDialogOpen(true);
   };
 
   // Edit an existing bonus
   const handleEditBonus = (bonus) => {
     setCurrentBonus(bonus);
+    setValidationAttempted(false);
 
-    // If bonusType is set, auto-filter external bonuses
+    // Filter external bonuses if bonus type is available.
     if (bonus.bonusType) {
-      // important: use extBonus.type (lowercase) from your API
       const filtered = externalBonuses.filter(
-        (extBonus) => extBonus.type === parseInt(bonus.bonusType, 10)
+        (ext) => parseInt(ext.type, 10) === parseInt(bonus.bonusType, 10)
       );
       setFilteredExternalBonuses(filtered);
     } else {
@@ -185,45 +223,76 @@ function BonusesManagement() {
     setDialogOpen(true);
   };
 
-  // Delete a bonus
+  // Delete an existing bonus
   const handleDeleteBonus = async (bonusId) => {
     try {
       await axios.delete(`${BONUSES_API}/${bonusId}`, {
         headers: { Authorization: sessionStorage.getItem("token") },
       });
       setBonuses((prev) => prev.filter((b) => b.bonusId !== bonusId));
-    } catch (error) {
-      console.error("Error deleting bonus:", error);
+    } catch (err) {
+      console.error("Error deleting bonus:", err);
+      setError(extractErrorMessage(err));
     }
   };
 
-  // Save bonus changes (create or update)
+  // Validate fields before saving
+  const isFieldEmpty = (fieldValue) =>
+    fieldValue === undefined || fieldValue === null || fieldValue.toString().trim() === "";
+
   const handleSaveBonus = async () => {
-    const token = sessionStorage.getItem("token");
+    setValidationAttempted(true);
+
+    if (!currentBonus) return;
+
+    const { name, description, portalId, maxAmount, percentage, bonusType, partnerBonusId } =
+      currentBonus;
+
+    // 1. Check required fields.
+    if (
+      isFieldEmpty(name) ||
+      isFieldEmpty(description) ||
+      isFieldEmpty(portalId) ||
+      maxAmount === "" ||
+      percentage === "" ||
+      isFieldEmpty(bonusType)
+    ) {
+      return;
+    }
+    // 2. If external bonuses are available, ensure partnerBonusId is provided.
+    if (filteredExternalBonuses.length > 0 && isFieldEmpty(partnerBonusId)) {
+      return;
+    }
+
     try {
+      const token = sessionStorage.getItem("token");
+
       if (currentBonus.bonusId) {
-        // update existing bonus
-        const response = await axios.put(`${BONUSES_API}/${currentBonus.bonusId}`, currentBonus, {
+        // Update existing bonus.
+        const res = await axios.put(`${BONUSES_API}/${currentBonus.bonusId}`, currentBonus, {
           headers: { Authorization: token },
         });
-        setBonuses((prev) =>
-          prev.map((b) => (b.bonusId === currentBonus.bonusId ? response.data : b))
-        );
+        setBonuses((prev) => prev.map((b) => (b.bonusId === currentBonus.bonusId ? res.data : b)));
       } else {
-        // create new bonus
-        const response = await axios.post(BONUSES_API, currentBonus, {
+        // Create new bonus.
+        const res = await axios.post(BONUSES_API, currentBonus, {
           headers: { Authorization: token },
         });
-        setBonuses((prev) => [...prev, response.data]);
+        setBonuses((prev) => [...prev, res.data]);
       }
+
       setDialogOpen(false);
       setCurrentBonus(null);
-    } catch (error) {
-      console.error("Error saving bonus:", error);
+      setValidationAttempted(false);
+    } catch (err) {
+      console.error("Error saving bonus:", err);
+      setError(extractErrorMessage(err));
     }
   };
 
-  // Define columns for the internal bonuses table
+  /**********************************************************
+   * TABLE DEFINITIONS
+   **********************************************************/
   const bonusColumns = [
     { Header: "Bonus ID", accessor: "bonusId" },
     { Header: "Name", accessor: "name" },
@@ -241,6 +310,20 @@ function BonusesManagement() {
     },
     { Header: "Bonus Type", accessor: "bonusType" },
     {
+      Header: "Icon",
+      accessor: "iconImageBase64",
+      Cell: ({ value }) =>
+        value ? (
+          <img
+            src={`data:image/png;base64,${value}`}
+            alt="Bonus Icon"
+            style={{ width: "40px", height: "40px" }}
+          />
+        ) : (
+          "No Icon"
+        ),
+    },
+    {
       Header: "Actions",
       accessor: "actions",
       Cell: (cellProps) => (
@@ -253,24 +336,7 @@ function BonusesManagement() {
     },
   ];
 
-  // Define columns for the external bonuses table
-  const externalBonusColumns = [
-    { Header: "ID", accessor: "id" },
-    { Header: "Name", accessor: "name" },
-    { Header: "Description", accessor: "description" },
-    {
-      Header: "Start Date",
-      accessor: "startDateTS",
-      Cell: ({ value }) => new Date(value * 1000).toLocaleDateString(),
-    },
-    {
-      Header: "End Date",
-      accessor: "endDateTS",
-      Cell: ({ value }) => new Date(value * 1000).toLocaleDateString(),
-    },
-  ];
-
-  // Transform the internal bonuses data
+  // Transform bonuses data into rows for DataTable.
   const bonusRows = bonuses.map((b) => ({
     bonusId: b.bonusId,
     name: b.name,
@@ -279,17 +345,21 @@ function BonusesManagement() {
     maxAmount: b.maxAmount,
     percentage: b.percentage,
     bonusType: b.bonusType,
+    iconImageBase64: b.iconImageBase64,
     actions: b.bonusId,
   }));
 
-  // Transform the external bonuses data
-  const externalBonusRows = externalBonuses.map((extB) => ({
-    id: extB.id,
-    name: extB.name,
-    description: extB.description,
-    startDateTS: extB.startDateTS,
-    endDateTS: extB.endDateTS,
-  }));
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <DashboardNavbar />
+        <MDBox py={3} display="flex" justifyContent="center">
+          <CircularProgress />
+        </MDBox>
+        <Footer />
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -330,43 +400,15 @@ function BonusesManagement() {
               </MDBox>
             </Card>
           </Grid>
-
-          {/* External Bonuses Table */}
-          <Grid item xs={12}>
-            <Card>
-              <MDBox
-                mx={2}
-                mt={-3}
-                py={3}
-                px={2}
-                variant="gradient"
-                bgColor="info"
-                borderRadius="lg"
-                coloredShadow="info"
-              >
-                <MDTypography variant="h6" color="white">
-                  External Bonuses
-                </MDTypography>
-              </MDBox>
-              <MDBox pt={3}>
-                <DataTable
-                  table={{ columns: externalBonusColumns, rows: externalBonusRows }}
-                  isSorted
-                  entriesPerPage
-                  showTotalEntries
-                  noEndBorder
-                />
-              </MDBox>
-            </Card>
-          </Grid>
         </Grid>
       </MDBox>
       <Footer />
 
-      {/* ADD / EDIT BONUS DIALOG */}
+      {/* CREATE / EDIT BONUS DIALOG */}
       <Dialog open={isDialogOpen} onClose={() => setDialogOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>{currentBonus?.bonusId ? "Edit Bonus" : "Add Bonus"}</DialogTitle>
         <DialogContent>
+          {/* NAME */}
           <TextField
             label="Name"
             fullWidth
@@ -374,7 +416,19 @@ function BonusesManagement() {
             variant="outlined"
             value={currentBonus?.name || ""}
             onChange={(e) => setCurrentBonus({ ...currentBonus, name: e.target.value })}
+            error={
+              validationAttempted &&
+              (isFieldEmpty(currentBonus?.name) || currentBonus?.name.trim() === "")
+            }
+            helperText={
+              validationAttempted &&
+              (isFieldEmpty(currentBonus?.name) || currentBonus?.name.trim() === "")
+                ? "Name is required."
+                : ""
+            }
           />
+
+          {/* DESCRIPTION */}
           <TextField
             label="Description"
             fullWidth
@@ -382,10 +436,25 @@ function BonusesManagement() {
             variant="outlined"
             value={currentBonus?.description || ""}
             onChange={(e) => setCurrentBonus({ ...currentBonus, description: e.target.value })}
+            error={
+              validationAttempted &&
+              (isFieldEmpty(currentBonus?.description) || currentBonus?.description.trim() === "")
+            }
+            helperText={
+              validationAttempted &&
+              (isFieldEmpty(currentBonus?.description) || currentBonus?.description.trim() === "")
+                ? "Description is required."
+                : ""
+            }
           />
 
-          {/* Portal Dropdown */}
-          <FormControl fullWidth margin="normal" variant="outlined">
+          {/* PORTAL SELECT */}
+          <FormControl
+            fullWidth
+            margin="normal"
+            variant="outlined"
+            error={validationAttempted && isFieldEmpty(currentBonus?.portalId)}
+          >
             <InputLabel id="portal-select-label">Portal</InputLabel>
             <Select
               labelId="portal-select-label"
@@ -399,9 +468,14 @@ function BonusesManagement() {
                 </MenuItem>
               ))}
             </Select>
+            {validationAttempted && isFieldEmpty(currentBonus?.portalId) && (
+              <MDTypography variant="caption" color="error">
+                Portal is required.
+              </MDTypography>
+            )}
           </FormControl>
 
-          {/* Max Amount */}
+          {/* MAX AMOUNT */}
           <TextField
             label="Max Amount"
             fullWidth
@@ -412,14 +486,23 @@ function BonusesManagement() {
             inputProps={{ min: 0 }}
             onChange={(e) => {
               const val = parseFloat(e.target.value);
-              if (val >= 0) {
+              if (!isNaN(val) && val >= 0) {
                 setCurrentBonus({ ...currentBonus, maxAmount: val });
+              } else {
+                setCurrentBonus({ ...currentBonus, maxAmount: "" });
               }
             }}
-            helperText="Enter a positive number for max amount"
+            error={
+              validationAttempted && (currentBonus?.maxAmount === "" || currentBonus?.maxAmount < 0)
+            }
+            helperText={
+              validationAttempted && (currentBonus?.maxAmount === "" || currentBonus?.maxAmount < 0)
+                ? "Max Amount is required and must be positive."
+                : "Enter a positive number for max amount."
+            }
           />
 
-          {/* Percentage */}
+          {/* PERCENTAGE */}
           <TextField
             label="Percentage"
             fullWidth
@@ -430,27 +513,48 @@ function BonusesManagement() {
             inputProps={{ min: 0, max: 100 }}
             onChange={(e) => {
               const val = parseFloat(e.target.value);
-              if (val >= 0 && val <= 100) {
+              if (!isNaN(val) && val >= 0 && val <= 100) {
                 setCurrentBonus({ ...currentBonus, percentage: val });
+              } else {
+                setCurrentBonus({ ...currentBonus, percentage: "" });
               }
             }}
-            helperText="Enter a value between 0 and 100"
+            error={
+              validationAttempted &&
+              (currentBonus?.percentage === "" ||
+                currentBonus?.percentage < 0 ||
+                currentBonus?.percentage > 100)
+            }
+            helperText={
+              validationAttempted &&
+              (currentBonus?.percentage === "" ||
+                currentBonus?.percentage < 0 ||
+                currentBonus?.percentage > 100)
+                ? "Percentage is required and must be between 0 and 100."
+                : "Enter a value between 0 and 100."
+            }
           />
 
-          {/* Bonus Type + Parent Bonus */}
-          <FormControl fullWidth variant="outlined" margin="normal">
+          {/* BONUS TYPE */}
+          <FormControl
+            fullWidth
+            variant="outlined"
+            margin="normal"
+            error={validationAttempted && isFieldEmpty(currentBonus?.bonusType)}
+          >
             <InputLabel id="bonus-type-label">Bonus Type</InputLabel>
             <Select
               labelId="bonus-type-label"
               value={currentBonus?.bonusType || ""}
               onChange={(e) => {
-                const type = e.target.value;
-                // reset partner bonus
-                setCurrentBonus({ ...currentBonus, bonusType: type, partnerBonusId: "" });
-
-                // Filter by 'type' from the external bonus response
+                const typeVal = e.target.value;
+                setCurrentBonus({
+                  ...currentBonus,
+                  bonusType: typeVal,
+                  partnerBonusId: "",
+                });
                 const filtered = externalBonuses.filter(
-                  (extBonus) => extBonus.type === parseInt(type, 10)
+                  (extB) => parseInt(extB.type, 10) === parseInt(typeVal, 10)
                 );
                 setFilteredExternalBonuses(filtered);
               }}
@@ -460,20 +564,27 @@ function BonusesManagement() {
               <MenuItem value="5">FREE_BET</MenuItem>
               <MenuItem value="6">FREE_SPIN</MenuItem>
             </Select>
+            {validationAttempted && isFieldEmpty(currentBonus?.bonusType) && (
+              <MDTypography variant="caption" color="error">
+                Bonus Type is required.
+              </MDTypography>
+            )}
           </FormControl>
 
-          {/* Conditionally show Parent Bonus dropdown if there's a filtered list */}
+          {/* CONDITIONAL PARENT BONUS SELECT */}
           {filteredExternalBonuses.length > 0 && (
-            <FormControl fullWidth variant="outlined" margin="normal">
+            <FormControl
+              fullWidth
+              variant="outlined"
+              margin="normal"
+              error={validationAttempted && isFieldEmpty(currentBonus?.partnerBonusId)}
+            >
               <InputLabel id="parent-bonus-label">Parent Bonus</InputLabel>
               <Select
                 labelId="parent-bonus-label"
                 value={currentBonus?.partnerBonusId || ""}
                 onChange={(e) =>
-                  setCurrentBonus({
-                    ...currentBonus,
-                    partnerBonusId: e.target.value,
-                  })
+                  setCurrentBonus({ ...currentBonus, partnerBonusId: e.target.value })
                 }
                 label="Parent Bonus"
               >
@@ -483,7 +594,37 @@ function BonusesManagement() {
                   </MenuItem>
                 ))}
               </Select>
+              {validationAttempted && isFieldEmpty(currentBonus?.partnerBonusId) && (
+                <MDTypography variant="caption" color="error">
+                  Parent Bonus is required.
+                </MDTypography>
+              )}
             </FormControl>
+          )}
+
+          {/* IMAGE UPLOAD */}
+          <input
+            type="file"
+            accept="image/png, image/gif"
+            onChange={async (e) => {
+              const file = e.target.files[0];
+              if (!file) return;
+              const reader = new FileReader();
+              reader.onloadend = () => {
+                const base64String = reader.result.replace("data:", "").replace(/^.+,/, "");
+                setCurrentBonus({ ...currentBonus, iconImageBase64: base64String });
+              };
+              reader.readAsDataURL(file);
+            }}
+          />
+
+          {/* Preview uploaded image */}
+          {currentBonus?.iconImageBase64 && (
+            <img
+              src={`data:image/png;base64,${currentBonus.iconImageBase64}`}
+              alt="bonus icon preview"
+              style={{ width: "80px", height: "80px", marginTop: "1rem" }}
+            />
           )}
         </DialogContent>
         <DialogActions>
@@ -495,11 +636,22 @@ function BonusesManagement() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Snackbar for error notifications */}
+      <Snackbar
+        open={!!error}
+        autoHideDuration={6000}
+        onClose={() => setError(null)}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert onClose={() => setError(null)} severity="error" variant="filled">
+          {error}
+        </Alert>
+      </Snackbar>
     </DashboardLayout>
   );
 }
 
-// Optional prop types for row objects
 BonusesManagement.propTypes = {
   row: PropTypes.shape({
     original: PropTypes.shape({

@@ -1,6 +1,4 @@
 // src/routes.js
-
-import Dashboard from "layouts/dashboard";
 import Tables from "layouts/tables";
 import Billing from "layouts/billing";
 import RTL from "layouts/rtl";
@@ -12,64 +10,12 @@ import PortalManagement from "layouts/portals/PortalManagement";
 import BonusesManagement from "layouts/bonuses/BonusesManagement";
 import BonusDetails from "layouts/bonuses/BonusDetails";
 import BonusEdit from "layouts/bonuses/BonusEdit";
+import PortalLogs from "layouts/portals/PortalLogs";
+import AllLogs from "layouts/portals/AllLogs";
 import Icon from "@mui/material/Icon";
-import PortalLogs from "./layouts/portals/PortalLogs";
+import Logout from "./layouts/authentication/logout/Logout";
 
 const routes = [
-  {
-    type: "collapse",
-    name: "Dashboard",
-    key: "dashboard",
-    icon: <Icon fontSize="small">dashboard</Icon>,
-    route: "/dashboard",
-    component: <Dashboard />,
-    protected: true, // Add this line
-  },
-  {
-    type: "collapse",
-    name: "Tables",
-    key: "tables",
-    icon: <Icon fontSize="small">table_view</Icon>,
-    route: "/tables",
-    component: <Tables />,
-    protected: true, // Add this line
-  },
-  {
-    type: "collapse",
-    name: "Billing",
-    key: "billing",
-    icon: <Icon fontSize="small">receipt_long</Icon>,
-    route: "/billing",
-    component: <Billing />,
-    protected: true, // Add this line
-  },
-  {
-    type: "collapse",
-    name: "RTL",
-    key: "rtl",
-    icon: <Icon fontSize="small">format_textdirection_r_to_l</Icon>,
-    route: "/rtl",
-    component: <RTL />,
-    protected: true, // Add this line
-  },
-  {
-    type: "collapse",
-    name: "Notifications",
-    key: "notifications",
-    icon: <Icon fontSize="small">notifications</Icon>,
-    route: "/notifications",
-    component: <Notifications />,
-    protected: true, // Add this line
-  },
-  {
-    type: "collapse",
-    name: "Profile",
-    key: "profile",
-    icon: <Icon fontSize="small">person</Icon>,
-    route: "/profile",
-    component: <Profile />,
-    protected: true, // Add this line
-  },
   {
     type: "collapse",
     name: "Portals",
@@ -77,7 +23,7 @@ const routes = [
     icon: <Icon fontSize="small">web</Icon>,
     route: "/portals",
     component: <PortalManagement />,
-    protected: true, // Add this line
+    protected: true,
   },
   {
     type: "route",
@@ -85,7 +31,16 @@ const routes = [
     key: "portal-logs",
     route: "/portals/:id/logs",
     component: <PortalLogs />,
-    protected: true, // Add this line
+    protected: true,
+  },
+  {
+    type: "collapse",
+    name: "All Logs",
+    key: "all-logs",
+    icon: <Icon fontSize="small">list</Icon>,
+    route: "/portals/logs",
+    component: <AllLogs />,
+    protected: true,
   },
   {
     type: "collapse",
@@ -94,7 +49,7 @@ const routes = [
     icon: <Icon fontSize="small">card_giftcard</Icon>,
     route: "/bonuses",
     component: <BonusesManagement />,
-    protected: true, // Add this line
+    protected: true,
   },
   {
     type: "route",
@@ -102,7 +57,7 @@ const routes = [
     key: "bonus-details",
     route: "/bonuses/:bonusId/details",
     component: <BonusDetails />,
-    protected: true, // Add this line
+    protected: true,
   },
   {
     type: "route",
@@ -110,7 +65,17 @@ const routes = [
     key: "bonus-edit",
     route: "/bonuses/:bonusId/edit",
     component: <BonusEdit />,
-    protected: true, // Add this line
+    protected: true,
+  },
+  // Add a Logout route to clear authentication
+  {
+    type: "collapse",
+    name: "Logout",
+    key: "logout",
+    icon: <Icon fontSize="small">logout</Icon>,
+    route: "/logout",
+    component: <Logout />,
+    protected: true,
   },
   // Public routes (no need for 'protected' property or set it to false)
   {
@@ -120,7 +85,7 @@ const routes = [
     icon: <Icon fontSize="small">login</Icon>,
     route: "/authentication/sign-in",
     component: <SignIn />,
-    protected: false, // Explicitly mark as public
+    protected: false,
   },
   {
     type: "collapse",
@@ -129,7 +94,7 @@ const routes = [
     icon: <Icon fontSize="small">assignment</Icon>,
     route: "/authentication/sign-up",
     component: <SignUp />,
-    protected: false, // Explicitly mark as public
+    protected: false,
   },
 ];
 

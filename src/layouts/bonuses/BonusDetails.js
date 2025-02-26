@@ -1,67 +1,71 @@
 import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
-import { useParams, useNavigate } from "react-router-dom";
-import axios from "axios";
-import Card from "@mui/material/Card";
-import Grid from "@mui/material/Grid";
-import CircularProgress from "@mui/material/CircularProgress";
-import Button from "@mui/material/Button";
-import IconButton from "@mui/material/IconButton";
-import Menu from "@mui/material/Menu";
-import MenuItem from "@mui/material/MenuItem";
-import Dialog from "@mui/material/Dialog";
-import DialogTitle from "@mui/material/DialogTitle";
-import DialogContent from "@mui/material/DialogContent";
-import DialogActions from "@mui/material/DialogActions";
-import TextField from "@mui/material/TextField";
-import InputLabel from "@mui/material/InputLabel";
-import FormControl from "@mui/material/FormControl";
-import Select from "@mui/material/Select";
-import Checkbox from "@mui/material/Checkbox";
-import FormControlLabel from "@mui/material/FormControlLabel";
+import { useNavigate, useParams } from "react-router-dom";
+import axios, { extractErrorMessage } from "index";
+
+// Material UI components
+import {
+  Button,
+  Card,
+  Checkbox,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
+  FormControlLabel,
+  Grid,
+  IconButton,
+  InputLabel,
+  Menu,
+  MenuItem,
+  Select,
+  TextField,
+  Snackbar,
+  Alert,
+} from "@mui/material";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
+import DeleteIcon from "@mui/icons-material/Delete"; // New import
+
+// Custom components
 import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
 import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
 import DashboardNavbar from "examples/Navbars/DashboardNavbar";
 import Footer from "examples/Footer";
-import DataTable from "examples/Tables/DataTable"; // Adjusted import path
+import DataTable from "examples/Tables/DataTable";
 
+// Constants
 const BONUSES_API = "http://localhost:8080/api/bonuses";
 
+/**
+ * ACTION MENU COMPONENT
+ */
 function ActionMenu({ rule, onEdit, onDelete }) {
   const [anchorEl, setAnchorEl] = useState(null);
 
-  const handleClick = (event) => {
-    setAnchorEl(event.currentTarget);
+  const handleMenuOpen = (event) => setAnchorEl(event.currentTarget);
+  const handleMenuClose = () => setAnchorEl(null);
+
+  const handleEditClick = () => {
+    onEdit(rule);
+    handleMenuClose();
   };
 
-  const handleClose = () => {
-    setAnchorEl(null);
+  const handleDeleteClick = () => {
+    onDelete(rule.ruleId);
+    handleMenuClose();
   };
 
   return (
     <div style={{ position: "relative" }}>
-      <IconButton onClick={handleClick}>
+      <IconButton onClick={handleMenuOpen}>
         <MoreVertIcon />
       </IconButton>
-      <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleClose}>
-        <MenuItem
-          onClick={() => {
-            onEdit(rule);
-            handleClose();
-          }}
-        >
-          Edit
-        </MenuItem>
-        <MenuItem
-          onClick={() => {
-            onDelete(rule.ruleId);
-            handleClose();
-          }}
-        >
-          Delete
-        </MenuItem>
+      <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose} keepMounted>
+        <MenuItem onClick={handleEditClick}>Edit</MenuItem>
+        <MenuItem onClick={handleDeleteClick}>Delete</MenuItem>
       </Menu>
     </div>
   );
@@ -70,14 +74,18 @@ function ActionMenu({ rule, onEdit, onDelete }) {
 ActionMenu.propTypes = {
   rule: PropTypes.shape({
     ruleId: PropTypes.number.isRequired,
-    ruleKey: PropTypes.string,
+    ruleKey: PropTypes.string.isRequired,
     ruleOperator: PropTypes.string,
     ruleValue: PropTypes.oneOfType([PropTypes.string, PropTypes.number, PropTypes.bool]),
+    ruleOrder: PropTypes.number,
   }).isRequired,
   onEdit: PropTypes.func.isRequired,
   onDelete: PropTypes.func.isRequired,
 };
 
+/**
+ * ACTIONS CELL COMPONENT
+ */
 function ActionsCell({ row, onEdit, onDelete }) {
   return <ActionMenu rule={row.original} onEdit={onEdit} onDelete={onDelete} />;
 }
@@ -89,81 +97,108 @@ ActionsCell.propTypes = {
       ruleKey: PropTypes.string,
       ruleOperator: PropTypes.string,
       ruleValue: PropTypes.oneOfType([PropTypes.string, PropTypes.number, PropTypes.bool]),
+      ruleOrder: PropTypes.number,
     }).isRequired,
   }).isRequired,
   onEdit: PropTypes.func.isRequired,
   onDelete: PropTypes.func.isRequired,
 };
 
+/**
+ * BONUS DETAILS PAGE
+ */
 function BonusDetails() {
   const { bonusId } = useParams();
   const navigate = useNavigate();
+
+  // Bonus and rules data
   const [bonus, setBonus] = useState(null);
   const [rules, setRules] = useState([]);
   const [ruleCombinations, setRuleCombinations] = useState([]);
+
+  // UI state
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Dialog & form states
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [currentRule, setCurrentRule] = useState(null);
   const [selectedRuleKey, setSelectedRuleKey] = useState("");
   const [validOperators, setValidOperators] = useState([]);
   const [valueType, setValueType] = useState("");
+  const [formError, setFormError] = useState("");
 
+  // Fetch bonus details & rules
   useEffect(() => {
-    const token = sessionStorage.getItem("token");
-    if (!token) {
-      console.error("Authorization token not found.");
-      setError("Authorization token not found.");
-      setLoading(false);
-      return;
-    }
-    axios
-      .get(`${BONUSES_API}/${bonusId}`, { headers: { Authorization: `${token}` } })
-      .then((response) => {
-        console.log("Bonus details response:", response.data);
-        setBonus(response.data);
-        setRules(response.data.rules || []);
+    const fetchBonusDetails = async () => {
+      const token = sessionStorage.getItem("token");
+      if (!token) {
+        setError("Authorization token not found.");
         setLoading(false);
-      })
-      .catch((error) => {
-        console.error("Error fetching bonus details:", error);
-        if (error.response) {
-          console.error("Response data:", error.response.data);
-        }
-        setError("Failed to load bonus details.");
+        return;
+      }
+      try {
+        const response = await axios.get(`${BONUSES_API}/${bonusId}`, {
+          headers: { Authorization: token },
+        });
+        const fetchedBonus = response.data;
+        const mappedRules = (fetchedBonus.rules || []).map((rule) => ({
+          ...rule,
+          ruleId: rule.id,
+          ruleOrder: rule.ruleOrder || 0,
+          // Ensure rangeRules is always an array—even if empty
+          rangeRules: rule.rangeRules || [],
+        }));
+        setBonus(fetchedBonus);
+        setRules(mappedRules);
+      } catch (err) {
+        console.error("Bonus details error:", err);
+        setError(extractErrorMessage(err));
+      } finally {
         setLoading(false);
-      });
+      }
+    };
+    fetchBonusDetails();
   }, [bonusId]);
 
+  // Fetch rule key/operator combinations
   useEffect(() => {
-    const token = sessionStorage.getItem("token");
-    if (!token) {
-      console.error("Authorization token not found.");
-      setError("Authorization token not found.");
-      return;
-    }
-    axios
-      .get(`${BONUSES_API}/rules/combinations`, {
-        headers: { Authorization: `${token}` },
-      })
-      .then((response) => {
-        setRuleCombinations(response.data);
-      })
-      .catch((error) => {
-        console.error("Error fetching rule combinations:", error);
-        if (error.response) {
-          console.error("Response data:", error.response.data);
-        }
-      });
+    const fetchRuleCombinations = async () => {
+      const token = sessionStorage.getItem("token");
+      if (!token) {
+        setError("Authorization token not found.");
+        return;
+      }
+      try {
+        const res = await axios.get(`${BONUSES_API}/rules/combinations`, {
+          headers: { Authorization: token },
+        });
+        setRuleCombinations(res.data);
+      } catch (err) {
+        console.error("Rule combinations error:", err);
+      }
+    };
+    fetchRuleCombinations();
   }, []);
 
+  // Update valid operators and value type when currentRule changes
   useEffect(() => {
     if (currentRule && currentRule.ruleKey) {
-      setSelectedRuleKey(currentRule.ruleKey);
       const combination = ruleCombinations.find((rc) => rc.ruleKey === currentRule.ruleKey);
       if (combination) {
         setValidOperators(combination.validOperators);
         setValueType(combination.valueType);
+        // For RANGE rules, only auto-populate an empty row if we are creating a new rule.
+        if (
+          combination.valueType === "RANGE" &&
+          !currentRule.ruleId && // not editing
+          (!currentRule.rangeRules || currentRule.rangeRules.length === 0)
+        ) {
+          setCurrentRule((prev) => ({
+            ...prev,
+            rangeRules: [{ minValue: "", maxValue: "", rewardValue: "" }],
+          }));
+        }
       } else {
         setValidOperators([]);
         setValueType("");
@@ -173,93 +208,136 @@ function BonusDetails() {
       setValidOperators([]);
       setValueType("");
     }
+    setFormError("");
   }, [currentRule, ruleCombinations]);
+
+  // Range Rule handlers
+  const handleAddRangeRule = () => {
+    const newRangeRule = { minValue: "", maxValue: "", rewardValue: "" };
+    setCurrentRule((prev) => ({
+      ...prev,
+      rangeRules: prev.rangeRules ? [...prev.rangeRules, newRangeRule] : [newRangeRule],
+    }));
+  };
+
+  const handleRangeRuleChange = (index, field, value) => {
+    setCurrentRule((prev) => {
+      const updatedRangeRules = prev.rangeRules.map((rule, idx) =>
+        idx === index ? { ...rule, [field]: value } : rule
+      );
+      return { ...prev, rangeRules: updatedRangeRules };
+    });
+  };
+
+  const handleRemoveRangeRule = (index) => {
+    setCurrentRule((prev) => {
+      const updatedRangeRules = prev.rangeRules.filter((_, idx) => idx !== index);
+      return { ...prev, rangeRules: updatedRangeRules };
+    });
+  };
 
   const goBack = () => navigate(-1);
 
-  const handleEdit = (rule) => {
+  const handleEditRule = (rule) => {
     setCurrentRule(rule);
     setSelectedRuleKey(rule.ruleKey);
-    const combination = ruleCombinations.find((rc) => rc.ruleKey === rule.ruleKey);
-    if (combination) {
-      setValidOperators(combination.validOperators);
-      setValueType(combination.valueType);
-    } else {
-      setValidOperators([]);
-      setValueType("");
-    }
     setDialogOpen(true);
   };
 
-  const handleDelete = (ruleId) => {
+  const handleDeleteRule = async (ruleId) => {
     const token = sessionStorage.getItem("token");
-    axios
-      .delete(`${BONUSES_API}/${bonusId}/rules/${ruleId}`, {
-        headers: { Authorization: `${token}` },
-      })
-      .then(() => {
-        setRules((prevRules) => prevRules.filter((rule) => rule.ruleId !== ruleId));
-      })
-      .catch((error) => {
-        console.error("Error deleting rule:", error);
+    try {
+      await axios.delete(`${BONUSES_API}/${bonusId}/rules/${ruleId}`, {
+        headers: { Authorization: token },
       });
+      setRules((prevRules) => prevRules.filter((r) => r.ruleId !== ruleId));
+    } catch (err) {
+      console.error("Error deleting rule:", err);
+      setFormError(extractErrorMessage(err));
+    }
   };
 
-  const handleSave = () => {
-    // Perform validation
-    if (!currentRule.ruleKey) {
-      alert("Please select a Rule Key.");
-      return;
+  const validateRule = () => {
+    if (!currentRule.ruleKey) return "Please select a Rule Key.";
+    if (!currentRule.ruleOperator) return "Please select an Operator.";
+
+    const operatorOnly = ["IS_TRUE", "IS_FALSE"].includes(currentRule.ruleOperator);
+
+    if (valueType === "BOOLEAN" && !operatorOnly) {
+      if (typeof currentRule.ruleValue !== "boolean") {
+        return "Please set the boolean value (checked or unchecked).";
+      }
     }
-    if (!currentRule.ruleOperator) {
-      alert("Please select an Operator.");
-      return;
+
+    if (valueType === "NUMBER" && !operatorOnly) {
+      if (currentRule.ruleValue === "" || isNaN(currentRule.ruleValue)) {
+        return "Please enter a valid number for the rule value.";
+      }
     }
-    // For BOOLEAN type, ruleValue should be true or false
-    if (valueType === "BOOLEAN" && typeof currentRule.ruleValue !== "boolean") {
-      alert("Please set the rule value.");
-      return;
+
+    if (currentRule.ruleOrder === "" || isNaN(currentRule.ruleOrder)) {
+      return "Please enter a valid numeric value for Rule Order.";
     }
-    // For NUMBER type, ruleValue should be a number
-    if (valueType === "NUMBER" && (currentRule.ruleValue === "" || isNaN(currentRule.ruleValue))) {
-      alert("Please enter a valid number for the rule value.");
-      return;
-    }
-    // For RANGE type, need to implement proper validation
+
+    // Optionally add validation for each range rule if valueType is RANGE
     if (valueType === "RANGE") {
-      alert("Range rules are not supported yet.");
+      if (!currentRule.rangeRules || currentRule.rangeRules.length === 0) {
+        return "Please add at least one range rule.";
+      }
+      for (let i = 0; i < currentRule.rangeRules.length; i++) {
+        const rr = currentRule.rangeRules[i];
+        if (rr.minValue === "" || isNaN(rr.minValue)) {
+          return `Please enter a valid minimum value for range rule ${i + 1}.`;
+        }
+        if (rr.maxValue === "" || isNaN(rr.maxValue)) {
+          return `Please enter a valid maximum value for range rule ${i + 1}.`;
+        }
+        if (rr.rewardValue === "" || isNaN(rr.rewardValue)) {
+          return `Please enter a valid reward value for range rule ${i + 1}.`;
+        }
+      }
+    }
+
+    return "";
+  };
+
+  const handleSaveRule = async () => {
+    if (!currentRule) return;
+    const validationMsg = validateRule();
+    if (validationMsg) {
+      setFormError(validationMsg);
       return;
+    }
+
+    const payload = { ...currentRule };
+    if (["IS_TRUE", "IS_FALSE"].includes(currentRule.ruleOperator)) {
+      delete payload.ruleValue;
     }
 
     const token = sessionStorage.getItem("token");
-    const request = currentRule.ruleId
-      ? axios.put(`${BONUSES_API}/${bonusId}/rules/${currentRule.ruleId}`, currentRule, {
-          headers: { Authorization: `${token}` },
-        })
-      : axios.post(`${BONUSES_API}/${bonusId}/rules`, currentRule, {
-          headers: { Authorization: `${token}` },
-        });
-
-    request
-      .then((response) => {
-        if (currentRule.ruleId) {
-          setRules((prevRules) =>
-            prevRules.map((rule) => (rule.ruleId === currentRule.ruleId ? response.data : rule))
-          );
-        } else {
-          setRules((prevRules) => [...prevRules, response.data]);
-        }
-        setDialogOpen(false);
-        setCurrentRule(null);
-      })
-      .catch((error) => {
-        console.error("Error saving rule:", error);
-        if (error.response && error.response.data && error.response.data.message) {
-          alert(`Error: ${error.response.data.message}`);
-        } else {
-          alert("An error occurred while saving the rule.");
-        }
-      });
+    const isEditing = !!currentRule.ruleId;
+    try {
+      const res = isEditing
+        ? await axios.put(`${BONUSES_API}/${bonusId}/rules/${currentRule.ruleId}`, payload, {
+            headers: { Authorization: token },
+          })
+        : await axios.post(`${BONUSES_API}/${bonusId}/rules`, payload, {
+            headers: { Authorization: token },
+          });
+      if (isEditing) {
+        setRules((prevRules) =>
+          prevRules.map((r) => (r.ruleId === currentRule.ruleId ? res.data : r))
+        );
+      } else {
+        setRules((prevRules) => [...prevRules, { ...res.data, ruleId: res.data.id }]);
+      }
+      setDialogOpen(false);
+      setCurrentRule(null);
+      setFormError("");
+    } catch (err) {
+      console.error("Error saving rule:", err);
+      setFormError(extractErrorMessage(err));
+    }
   };
 
   if (loading) {
@@ -274,33 +352,28 @@ function BonusDetails() {
     );
   }
 
-  if (error) {
+  if (!bonus) {
     return (
       <DashboardLayout>
         <DashboardNavbar />
         <MDBox py={3} display="flex" justifyContent="center">
-          <MDTypography variant="h6" color="error">
-            {error}
-          </MDTypography>
+          <MDTypography variant="h6">No bonus data available.</MDTypography>
         </MDBox>
         <Footer />
       </DashboardLayout>
     );
   }
 
-  if (!bonus) {
-    return null; // Or handle accordingly
-  }
-
   const columns = [
     { Header: "Rule Key", accessor: "ruleKey" },
     { Header: "Operator", accessor: "ruleOperator" },
     { Header: "Value", accessor: "ruleValue" },
+    { Header: "Order", accessor: "ruleOrder" },
     {
       Header: "Actions",
       accessor: "ruleId",
       Cell: (cellProps) => (
-        <ActionsCell row={cellProps.row} onEdit={handleEdit} onDelete={handleDelete} />
+        <ActionsCell row={cellProps.row} onEdit={handleEditRule} onDelete={handleDeleteRule} />
       ),
     },
   ];
@@ -310,8 +383,9 @@ function BonusDetails() {
     ruleOperator: rule.ruleOperator,
     ruleValue:
       rule.ruleValue !== null && rule.ruleValue !== undefined ? rule.ruleValue.toString() : "N/A",
+    ruleOrder: rule.ruleOrder !== undefined ? rule.ruleOrder : "0",
     ruleId: rule.ruleId,
-    original: rule, // To be used in ActionsCell
+    original: rule,
   }));
 
   return (
@@ -335,13 +409,16 @@ function BonusDetails() {
                   {bonus.name || "Unnamed Bonus"}
                 </MDTypography>
               </MDBox>
+
               <MDBox p={3}>
                 <MDTypography variant="h6">Description</MDTypography>
                 <MDTypography variant="body2" mb={2}>
                   {bonus.description || "No description available."}
                 </MDTypography>
 
-                <MDTypography variant="h6">Rules</MDTypography>
+                <MDTypography variant="h6" mb={1}>
+                  Rules
+                </MDTypography>
                 <DataTable
                   table={{ columns, rows }}
                   entriesPerPage={{ defaultValue: 5, entries: [5, 10, 15] }}
@@ -350,28 +427,33 @@ function BonusDetails() {
                   isSorted
                   pagination
                 />
-                <Button
-                  variant="contained"
-                  color="primary"
-                  onClick={() => {
-                    setCurrentRule({ ruleKey: "", ruleOperator: "", ruleValue: "" });
-                    setSelectedRuleKey("");
-                    setValidOperators([]);
-                    setValueType("");
-                    setDialogOpen(true);
-                  }}
-                  style={{ marginRight: "10px", marginTop: "10px" }}
-                >
-                  Add Rule
-                </Button>
-                <Button
-                  variant="contained"
-                  color="secondary"
-                  onClick={goBack}
-                  style={{ marginTop: "10px" }}
-                >
-                  Back
-                </Button>
+
+                <MDBox mt={2} display="flex" gap={1}>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={() => {
+                      setCurrentRule({
+                        ruleKey: "",
+                        ruleOperator: "",
+                        ruleValue: "",
+                        ruleOrder: 0,
+                        // Initialize rangeRules if necessary
+                        rangeRules: [],
+                      });
+                      setSelectedRuleKey("");
+                      setValidOperators([]);
+                      setValueType("");
+                      setDialogOpen(true);
+                      setFormError("");
+                    }}
+                  >
+                    Add Rule
+                  </Button>
+                  <Button variant="contained" color="secondary" onClick={goBack}>
+                    Back
+                  </Button>
+                </MDBox>
               </MDBox>
             </Card>
           </Grid>
@@ -379,11 +461,19 @@ function BonusDetails() {
       </MDBox>
       <Footer />
 
+      {/* Add/Edit Rule Dialog */}
       <Dialog open={isDialogOpen} onClose={() => setDialogOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>{currentRule?.ruleId ? "Edit Rule" : "Add Rule"}</DialogTitle>
         <DialogContent>
           <Grid container spacing={2}>
-            {/* Rule Key Field */}
+            {formError && (
+              <Grid item xs={12}>
+                <MDTypography variant="caption" color="error">
+                  {formError}
+                </MDTypography>
+              </Grid>
+            )}
+
             <Grid item xs={12}>
               <FormControl fullWidth variant="outlined" margin="normal">
                 <InputLabel id="rule-key-label">Rule Key</InputLabel>
@@ -393,23 +483,28 @@ function BonusDetails() {
                   value={currentRule?.ruleKey || ""}
                   onChange={(e) => {
                     const selectedKey = e.target.value;
+                    const combination = ruleCombinations.find((rc) => rc.ruleKey === selectedKey);
                     setCurrentRule((prev) => ({
                       ...prev,
                       ruleKey: selectedKey,
                       ruleOperator: "",
                       ruleValue: "",
+                      ruleOrder: prev.ruleId ? prev.ruleOrder : 0,
+                      // If the new type is RANGE and we’re adding a new rule (no ruleId), initialize with one empty row.
+                      rangeRules:
+                        combination?.valueType === "RANGE"
+                          ? prev.ruleId
+                            ? prev.rangeRules
+                            : [{ minValue: "", maxValue: "", rewardValue: "" }]
+                          : prev.rangeRules,
                     }));
                     setSelectedRuleKey(selectedKey);
-                    const combination = ruleCombinations.find((rc) => rc.ruleKey === selectedKey);
-                    if (combination) {
-                      setValidOperators(combination.validOperators);
-                      setValueType(combination.valueType);
-                    } else {
-                      setValidOperators([]);
-                      setValueType("");
-                    }
+                    setValidOperators(combination?.validOperators || []);
+                    setValueType(combination?.valueType || "");
+                    setFormError("");
                   }}
                   label="Rule Key"
+                  disabled={Boolean(currentRule?.ruleId)}
                 >
                   {ruleCombinations.map((combination) => (
                     <MenuItem key={combination.ruleKey} value={combination.ruleKey}>
@@ -420,7 +515,6 @@ function BonusDetails() {
               </FormControl>
             </Grid>
 
-            {/* Operator Field */}
             <Grid item xs={12}>
               <FormControl
                 fullWidth
@@ -434,8 +528,14 @@ function BonusDetails() {
                   id="operator-select"
                   value={currentRule?.ruleOperator || ""}
                   onChange={(e) => {
-                    const selectedOperator = e.target.value;
-                    setCurrentRule((prev) => ({ ...prev, ruleOperator: selectedOperator }));
+                    setCurrentRule((prev) => ({
+                      ...prev,
+                      ruleOperator: e.target.value,
+                      ruleValue: ["IS_TRUE", "IS_FALSE"].includes(e.target.value)
+                        ? ""
+                        : prev.ruleValue,
+                    }));
+                    setFormError("");
                   }}
                   label="Operator"
                 >
@@ -448,22 +548,23 @@ function BonusDetails() {
               </FormControl>
             </Grid>
 
-            {/* Value Field */}
-            {valueType === "BOOLEAN" && (
-              <Grid item xs={12}>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={currentRule?.ruleValue === true}
-                      onChange={(e) =>
-                        setCurrentRule((prev) => ({ ...prev, ruleValue: e.target.checked }))
-                      }
-                    />
-                  }
-                  label="Value"
-                />
-              </Grid>
-            )}
+            {valueType === "BOOLEAN" &&
+              currentRule?.ruleOperator !== "IS_TRUE" &&
+              currentRule?.ruleOperator !== "IS_FALSE" && (
+                <Grid item xs={12}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={currentRule?.ruleValue === true}
+                        onChange={(e) =>
+                          setCurrentRule((prev) => ({ ...prev, ruleValue: e.target.checked }))
+                        }
+                      />
+                    }
+                    label="Value (Checked = True, Unchecked = False)"
+                  />
+                </Grid>
+              )}
 
             {valueType === "NUMBER" && (
               <Grid item xs={12}>
@@ -474,31 +575,134 @@ function BonusDetails() {
                   variant="outlined"
                   margin="normal"
                   value={currentRule?.ruleValue || ""}
-                  onChange={(e) =>
-                    setCurrentRule((prev) => ({ ...prev, ruleValue: parseFloat(e.target.value) }))
-                  }
+                  onChange={(e) => {
+                    const numValue = parseFloat(e.target.value);
+                    setCurrentRule((prev) => ({ ...prev, ruleValue: numValue }));
+                    setFormError("");
+                  }}
                 />
               </Grid>
             )}
 
             {valueType === "RANGE" && (
-              <Grid item xs={12}>
-                <MDTypography variant="body2" color="textSecondary">
-                  Range rules are not supported in this dialog yet.
-                </MDTypography>
-              </Grid>
+              <>
+                <Grid item xs={12}>
+                  <MDTypography variant="h6">Range Rules</MDTypography>
+                </Grid>
+                {currentRule?.rangeRules &&
+                  currentRule.rangeRules.map((rangeRule, index) => (
+                    <Grid container spacing={2} key={index} alignItems="center">
+                      <Grid item xs={4}>
+                        <TextField
+                          label="Min Value"
+                          type="number"
+                          fullWidth
+                          variant="outlined"
+                          margin="normal"
+                          value={rangeRule.minValue || ""}
+                          onChange={(e) =>
+                            handleRangeRuleChange(index, "minValue", parseFloat(e.target.value))
+                          }
+                        />
+                      </Grid>
+                      <Grid item xs={4}>
+                        <TextField
+                          label="Max Value"
+                          type="number"
+                          fullWidth
+                          variant="outlined"
+                          margin="normal"
+                          value={rangeRule.maxValue || ""}
+                          onChange={(e) =>
+                            handleRangeRuleChange(index, "maxValue", parseFloat(e.target.value))
+                          }
+                        />
+                      </Grid>
+                      <Grid item xs={3}>
+                        <TextField
+                          label="Reward Value"
+                          type="number"
+                          fullWidth
+                          variant="outlined"
+                          margin="normal"
+                          value={rangeRule.rewardValue || ""}
+                          onChange={(e) =>
+                            handleRangeRuleChange(index, "rewardValue", parseFloat(e.target.value))
+                          }
+                        />
+                      </Grid>
+                      <Grid item xs={1}>
+                        <IconButton onClick={() => handleRemoveRangeRule(index)}>
+                          <DeleteIcon />
+                        </IconButton>
+                      </Grid>
+                    </Grid>
+                  ))}
+                <Grid item xs={12}>
+                  <Button variant="contained" onClick={handleAddRangeRule}>
+                    Add Range Rule
+                  </Button>
+                </Grid>
+              </>
             )}
+
+            <Grid item xs={12}>
+              <TextField
+                label="Rule Order"
+                type="number"
+                fullWidth
+                variant="outlined"
+                margin="normal"
+                value={currentRule?.ruleOrder || ""}
+                onChange={(e) => {
+                  const orderValue = parseInt(e.target.value, 10);
+                  setCurrentRule((prev) => ({
+                    ...prev,
+                    ruleOrder: isNaN(orderValue) ? 0 : orderValue,
+                  }));
+                  setFormError("");
+                }}
+              />
+            </Grid>
           </Grid>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDialogOpen(false)} color="secondary">
+          <Button
+            onClick={() => {
+              setDialogOpen(false);
+              setFormError("");
+            }}
+            color="secondary"
+          >
             Cancel
           </Button>
-          <Button onClick={handleSave} color="primary" variant="contained">
+          <Button onClick={handleSaveRule} color="primary" variant="contained">
             Save
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Snackbar for error messages */}
+      <Snackbar
+        open={!!error || !!formError}
+        autoHideDuration={6000}
+        onClose={() => {
+          setError(null);
+          setFormError("");
+        }}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => {
+            setError(null);
+            setFormError("");
+          }}
+          severity="error"
+          variant="filled"
+        >
+          {error || formError}
+        </Alert>
+      </Snackbar>
     </DashboardLayout>
   );
 }

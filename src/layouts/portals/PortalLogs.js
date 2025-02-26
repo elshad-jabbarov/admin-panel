@@ -1,72 +1,74 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import axios from "axios";
+import axios, { extractErrorMessage } from "index";
 
 // Material UI components
 import {
-  Card,
-  Grid,
   Button,
+  Card,
   Dialog,
-  DialogTitle,
-  DialogContent,
   DialogActions,
-  TextField,
-  InputLabel,
+  DialogContent,
+  DialogTitle,
   FormControl,
-  Select,
+  InputLabel,
   MenuItem,
+  Select,
+  TextField,
+  Grid,
+  Snackbar,
+  Alert,
 } from "@mui/material";
-
-// Custom components
-import DataTable from "../../examples/Tables/DataTable";
-import MDBox from "../../components/MDBox";
-import MDTypography from "../../components/MDTypography";
-import DashboardLayout from "../../examples/LayoutContainers/DashboardLayout";
-import DashboardNavbar from "../../examples/Navbars/DashboardNavbar";
-import Footer from "../../examples/Footer";
+import MDBox from "components/MDBox";
+import MDTypography from "components/MDTypography";
+import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
+import DashboardNavbar from "examples/Navbars/DashboardNavbar";
+import Footer from "examples/Footer";
+import DataTable from "examples/Tables/DataTable";
 
 function PortalLogs() {
   const { id } = useParams();
   const [logs, setLogs] = useState([]);
-  const [bonuses, setBonuses] = useState([]); // State to store fetched bonuses
+  const [bonuses, setBonuses] = useState([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [playerId, setPlayerId] = useState("");
   const [amount, setAmount] = useState("");
-  const [selectedBonusId, setSelectedBonusId] = useState(""); // Renamed for clarity
+  const [selectedBonusId, setSelectedBonusId] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [globalError, setGlobalError] = useState("");
 
   useEffect(() => {
     fetchLogs();
-    fetchBonuses(); // Fetch bonuses when the component mounts
+    fetchBonuses();
   }, []);
 
   const fetchLogs = async () => {
     try {
       const response = await axios.get(`http://localhost:8080/api/portal/bonuses/${id}`, {
-        headers: { Authorization: `${sessionStorage.getItem("token")}` },
+        headers: { Authorization: sessionStorage.getItem("token") },
       });
       setLogs(response.data);
-    } catch (error) {
-      console.error("Error fetching logs:", error);
+    } catch (err) {
+      console.error("Error fetching logs:", err);
+      setGlobalError(extractErrorMessage(err));
     }
   };
 
   const fetchBonuses = async () => {
     try {
       const response = await axios.get("http://localhost:8080/api/bonuses", {
-        headers: { Authorization: `${sessionStorage.getItem("token")}` },
+        headers: { Authorization: sessionStorage.getItem("token") },
       });
       setBonuses(response.data);
-    } catch (error) {
-      console.error("Error fetching bonuses:", error);
+    } catch (err) {
+      console.error("Error fetching bonuses:", err);
+      setGlobalError(extractErrorMessage(err));
     }
   };
 
   const handleOpenDialog = () => {
     setIsDialogOpen(true);
     setErrorMessage("");
-    // Clear previous input values
     setPlayerId("");
     setAmount("");
     setSelectedBonusId("");
@@ -77,12 +79,10 @@ function PortalLogs() {
   };
 
   const handleAwardBonus = async () => {
-    // Validate inputs
     if (!playerId || !amount || !selectedBonusId) {
       setErrorMessage("Please fill in all fields.");
       return;
     }
-
     try {
       const response = await axios.post(
         "http://localhost:8080/api/bonuses/award",
@@ -94,21 +94,17 @@ function PortalLogs() {
         },
         {
           headers: {
-            Authorization: `${sessionStorage.getItem("token")}`,
+            Authorization: sessionStorage.getItem("token"),
             "Content-Type": "application/json",
           },
         }
       );
-
       console.log("Bonus awarded successfully:", response.data);
       setIsDialogOpen(false);
-      // Optionally refresh logs to show the new bonus application
       fetchLogs();
-    } catch (error) {
-      console.error("Error awarding bonus:", error);
-      setErrorMessage(
-        error.response?.data?.message || "An error occurred while awarding the bonus."
-      );
+    } catch (err) {
+      console.error("Error awarding bonus:", err);
+      setErrorMessage(err.response?.data?.message || "An error occurred while awarding the bonus.");
     }
   };
 
@@ -215,6 +211,17 @@ function PortalLogs() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <Snackbar
+        open={!!globalError}
+        autoHideDuration={6000}
+        onClose={() => setGlobalError("")}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert onClose={() => setGlobalError("")} severity="error" variant="filled">
+          {globalError}
+        </Alert>
+      </Snackbar>
     </DashboardLayout>
   );
 }

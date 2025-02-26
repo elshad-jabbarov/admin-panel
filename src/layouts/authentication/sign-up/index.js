@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import axios from "axios";
+import axios from "index";
 
 // @mui material components
 import Card from "@mui/material/Card";
