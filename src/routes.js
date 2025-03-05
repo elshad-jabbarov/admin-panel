@@ -1,7 +1,5 @@
 // src/routes.js
-import Tables from "layouts/tables";
 import Billing from "layouts/billing";
-import RTL from "layouts/rtl";
 import Notifications from "layouts/notifications";
 import Profile from "layouts/profile";
 import SignIn from "layouts/authentication/sign-in";
@@ -9,7 +7,6 @@ import SignUp from "layouts/authentication/sign-up";
 import PortalManagement from "layouts/portals/PortalManagement";
 import BonusesManagement from "layouts/bonuses/BonusesManagement";
 import BonusDetails from "layouts/bonuses/BonusDetails";
-import BonusEdit from "layouts/bonuses/BonusEdit";
 import PortalLogs from "layouts/portals/PortalLogs";
 import AllLogs from "layouts/portals/AllLogs";
 import Icon from "@mui/material/Icon";
@@ -57,14 +54,6 @@ const routes = [
     key: "bonus-details",
     route: "/bonuses/:bonusId/details",
     component: <BonusDetails />,
-    protected: true,
-  },
-  {
-    type: "route",
-    name: "Bonus Edit",
-    key: "bonus-edit",
-    route: "/bonuses/:bonusId/edit",
-    component: <BonusEdit />,
     protected: true,
   },
   // Add a Logout route to clear authentication

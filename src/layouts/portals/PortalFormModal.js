@@ -70,20 +70,20 @@ function PortalFormModal({ onClose, onSave }) {
       <Card sx={{ maxWidth: 500, mx: "auto", my: 5, p: 4 }}>
         <MDBox component="form" role="form" onSubmit={handleSubmit}>
           <MDTypography variant="h5" mb={2}>
-            Add New Portal
+            Yeni Portal Ekle
           </MDTypography>
 
           {/* Domain Name (required) */}
           <MDBox mb={2}>
             <MDInput
               type="text"
-              label="Domain Name"
+              label="domain Adı"
               fullWidth
               value={domainName}
               onChange={(e) => setDomainName(e.target.value)}
               error={validationAttempted && isEmpty(domainName)}
               helperText={
-                validationAttempted && isEmpty(domainName) ? "Domain Name is required." : ""
+                validationAttempted && isEmpty(domainName) ? "domain Adı gereklidir." : ""
               }
             />
           </MDBox>
@@ -91,10 +91,10 @@ function PortalFormModal({ onClose, onSave }) {
           {/* Portal Type (required, select) */}
           <MDBox mb={2}>
             <FormControl fullWidth>
-              <InputLabel id="portal-type-label">Portal Type</InputLabel>
+              <InputLabel id="portal-type-label">Portal Türü</InputLabel>
               <Select
                 labelId="portal-type-label"
-                label="Portal Type"
+                label="Portal Türü"
                 value={portalType}
                 onChange={(e) => setPortalType(e.target.value)}
                 error={validationAttempted && isEmpty(portalType)}
@@ -105,7 +105,7 @@ function PortalFormModal({ onClose, onSave }) {
             </FormControl>
             {validationAttempted && isEmpty(portalType) && (
               <MDTypography variant="caption" color="error">
-                Portal Type is required.
+                Portal Türü gereklidir.
               </MDTypography>
             )}
           </MDBox>
@@ -114,13 +114,13 @@ function PortalFormModal({ onClose, onSave }) {
           <MDBox mb={2}>
             <MDInput
               type="text"
-              label="API Username"
+              label="API Kullanıcı Adı"
               fullWidth
               value={apiUsername}
               onChange={(e) => setApiUsername(e.target.value)}
               error={validationAttempted && isEmpty(apiUsername)}
               helperText={
-                validationAttempted && isEmpty(apiUsername) ? "API Username is required." : ""
+                validationAttempted && isEmpty(apiUsername) ? "API Kullanıcı Adı gereklidir." : ""
               }
             />
           </MDBox>
@@ -129,13 +129,13 @@ function PortalFormModal({ onClose, onSave }) {
           <MDBox mb={2}>
             <MDInput
               type="password"
-              label="API Password"
+              label="API Şifresi"
               fullWidth
               value={apiPassword}
               onChange={(e) => setApiPassword(e.target.value)}
               error={validationAttempted && isEmpty(apiPassword)}
               helperText={
-                validationAttempted && isEmpty(apiPassword) ? "API Password is required." : ""
+                validationAttempted && isEmpty(apiPassword) ? "API Şifresi gereklidir." : ""
               }
             />
           </MDBox>
@@ -144,7 +144,7 @@ function PortalFormModal({ onClose, onSave }) {
           <MDBox mb={2}>
             <MDInput
               type="text"
-              label="API Token (Optional)"
+              label="API Token (Opsiyonel)"
               fullWidth
               value={apiToken}
               onChange={(e) => setApiToken(e.target.value)}
@@ -153,10 +153,10 @@ function PortalFormModal({ onClose, onSave }) {
 
           <MDBox mt={3} display="flex" justifyContent="space-between">
             <MDButton color="secondary" onClick={onClose}>
-              Cancel
+              İptal
             </MDButton>
             <MDButton type="submit" color="info">
-              Save
+              Kaydet
             </MDButton>
           </MDBox>
         </MDBox>

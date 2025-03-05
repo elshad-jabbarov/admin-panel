@@ -36,14 +36,14 @@ function AllLogs() {
   };
 
   const columns = [
-    { Header: "Portal Name", accessor: "portalName", align: "left" },
-    { Header: "Status", accessor: "status", align: "left" },
-    { Header: "Reason", accessor: "reason", align: "left" },
-    { Header: "Player ID", accessor: "playerId", align: "center" },
-    { Header: "Amount", accessor: "calculatedAmount", align: "center" },
-    { Header: "Applied At", accessor: "appliedAt", align: "center" },
-    { Header: "Document ID", accessor: "documentId", align: "center" },
-    { Header: "Bonus Name", accessor: "bonusName", align: "left" },
+    { Header: "Portal Adı", accessor: "portalName", align: "left" },
+    { Header: "Durum", accessor: "status", align: "left" },
+    { Header: "Sebep", accessor: "reason", align: "left" },
+    { Header: "Oyuncu ID", accessor: "playerId", align: "center" },
+    { Header: "Miktar", accessor: "calculatedAmount", align: "center" },
+    { Header: "Uygulama Tarihi", accessor: "appliedAt", align: "center" },
+    { Header: "Belge ID", accessor: "documentId", align: "center" },
+    { Header: "Bonus Adı", accessor: "bonusName", align: "left" },
   ];
 
   const rows = logs.map((log) => ({
@@ -64,12 +64,12 @@ function AllLogs() {
         <Grid container spacing={3}>
           <Grid item xs={12}>
             <MDTypography variant="h4" gutterBottom>
-              All Portal Logs
+              Tüm Portal Günlükleri
             </MDTypography>
             <Card>
               {loading ? (
                 <MDBox display="flex" justifyContent="center" alignItems="center" p={3}>
-                  <MDTypography variant="h6">Loading...</MDTypography>
+                  <MDTypography variant="h6">Yükleniyor...</MDTypography>
                 </MDBox>
               ) : (
                 <DataTable

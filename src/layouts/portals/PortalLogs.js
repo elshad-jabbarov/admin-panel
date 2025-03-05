@@ -80,7 +80,7 @@ function PortalLogs() {
 
   const handleAwardBonus = async () => {
     if (!playerId || !amount || !selectedBonusId) {
-      setErrorMessage("Please fill in all fields.");
+      setErrorMessage("Lütfen tüm alanları doldurun.");
       return;
     }
     try {
@@ -104,19 +104,19 @@ function PortalLogs() {
       fetchLogs();
     } catch (err) {
       console.error("Error awarding bonus:", err);
-      setErrorMessage(err.response?.data?.message || "An error occurred while awarding the bonus.");
+      setErrorMessage(err.response?.data?.message || "Bonus verilirken bir hata oluştu.");
     }
   };
 
   const columns = [
-    { Header: "Status", accessor: "status" },
-    { Header: "Reason", accessor: "reason" },
-    { Header: "Player ID", accessor: "playerId" },
-    { Header: "Amount", accessor: "calculatedAmount" },
-    { Header: "Applied At", accessor: "appliedAt" },
-    { Header: "Document ID", accessor: "documentId" },
+    { Header: "Durum", accessor: "status" },
+    { Header: "Sebep", accessor: "reason" },
+    { Header: "Oyuncu ID", accessor: "playerId" },
+    { Header: "Miktar", accessor: "calculatedAmount" },
+    { Header: "Uygulama Tarihi", accessor: "appliedAt" },
+    { Header: "Belge ID", accessor: "documentId" },
     { Header: "Bonus ID", accessor: "bonusBonusId" },
-    { Header: "Bonus Name", accessor: "bonusName" },
+    { Header: "Bonus Adı", accessor: "bonusName" },
   ];
 
   const rows = logs.map((log) => ({
@@ -137,11 +137,11 @@ function PortalLogs() {
         <Grid container spacing={3}>
           <Grid item xs={12}>
             <MDTypography variant="h4" gutterBottom>
-              Request Logs for Portal {id}
+              Portal {id} için İstek Günlükleri
             </MDTypography>
             <MDBox display="flex" justifyContent="flex-end" mb={2}>
               <Button variant="contained" color="primary" onClick={handleOpenDialog}>
-                Award Bonus
+                Bonus Ver
               </Button>
             </MDBox>
             <Card>
@@ -161,7 +161,7 @@ function PortalLogs() {
 
       {/* Award Bonus Dialog */}
       <Dialog open={isDialogOpen} onClose={handleCloseDialog} fullWidth maxWidth="sm">
-        <DialogTitle>Award Bonus to Player</DialogTitle>
+        <DialogTitle>Oyuncuya Bonus Ver</DialogTitle>
         <DialogContent>
           {errorMessage && (
             <MDTypography color="error" variant="caption" display="block" gutterBottom>
@@ -169,7 +169,7 @@ function PortalLogs() {
             </MDTypography>
           )}
           <TextField
-            label="Player ID"
+            label="Oyuncu Kimliği"
             fullWidth
             margin="normal"
             variant="outlined"
@@ -178,7 +178,7 @@ function PortalLogs() {
             onChange={(e) => setPlayerId(e.target.value)}
           />
           <TextField
-            label="Amount"
+            label="Miktar"
             fullWidth
             margin="normal"
             variant="outlined"
@@ -187,12 +187,12 @@ function PortalLogs() {
             onChange={(e) => setAmount(e.target.value)}
           />
           <FormControl fullWidth variant="outlined" margin="normal">
-            <InputLabel id="bonus-select-label">Select Bonus</InputLabel>
+            <InputLabel id="bonus-select-label">Bonus Seç</InputLabel>
             <Select
               labelId="bonus-select-label"
               value={selectedBonusId}
               onChange={(e) => setSelectedBonusId(e.target.value)}
-              label="Select Bonus"
+              label="Bonus Seç"
             >
               {bonuses.map((bonus) => (
                 <MenuItem key={bonus.bonusId} value={bonus.bonusId}>
@@ -204,10 +204,10 @@ function PortalLogs() {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDialog} color="secondary">
-            Cancel
+            İptal
           </Button>
           <Button onClick={handleAwardBonus} color="primary" variant="contained">
-            Award Bonus
+            Bonus Ver
           </Button>
         </DialogActions>
       </Dialog>

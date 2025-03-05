@@ -36,10 +36,10 @@ const BONUSES_API = "http://localhost:8080/api/bonuses";
 const PORTALS_API = "http://localhost:8080/api/portal";
 
 /**
- * Action Menu for each bonus row:
- * - View Details
- * - Edit
- * - Delete
+ * Bonus satırları için aksiyon menüsü:
+ * - Detayları Gör
+ * - Düzenle
+ * - Sil
  */
 function ActionMenu({ bonus, onEdit, onDelete }) {
   const [anchorEl, setAnchorEl] = useState(null);
@@ -79,9 +79,9 @@ function ActionMenu({ bonus, onEdit, onDelete }) {
         anchorOrigin={{ vertical: "top", horizontal: "right" }}
         transformOrigin={{ vertical: "top", horizontal: "right" }}
       >
-        <MenuItem onClick={handleViewDetails}>View Details</MenuItem>
-        <MenuItem onClick={handleEdit}>Edit</MenuItem>
-        <MenuItem onClick={handleDelete}>Delete</MenuItem>
+        <MenuItem onClick={handleViewDetails}>Detayları Gör</MenuItem>
+        <MenuItem onClick={handleEdit}>Düzenle</MenuItem>
+        <MenuItem onClick={handleDelete}>Sil</MenuItem>
       </Menu>
     </>
   );
@@ -102,8 +102,8 @@ ActionMenu.propTypes = {
 };
 
 /**
- * Bonuses Management Page
- * Handles CRUD operations for "bonuses", plus optional partner bonus link.
+ * Bonus Yönetim Sayfası
+ * "Bonus" CRUD işlemlerini ve isteğe bağlı partner bonus bağlantısını yönetir.
  */
 function BonusesManagement() {
   // Data states
@@ -124,25 +124,25 @@ function BonusesManagement() {
   const navigate = useNavigate();
 
   /**********************************************************
-   * EFFECTS - FETCH ALL DATA ON MOUNT
+   * EFFECTS - TÜM VERİLERİ YÜKLE
    **********************************************************/
   useEffect(() => {
     const token = sessionStorage.getItem("token");
     if (!token) {
-      setError("Authorization token not found in sessionStorage.");
+      setError("Yetkilendirme token'ı sessionStorage'da bulunamadı.");
       setLoading(false);
       return;
     }
 
     Promise.all([fetchBonuses(token), fetchExternalBonuses(token), fetchPortals(token)])
       .catch((err) => {
-        console.error("Error loading initial data:", err);
+        console.error("Başlangıç verileri yüklenirken hata oluştu:", err);
       })
       .finally(() => setLoading(false));
   }, []);
 
   /**
-   * Fetch the list of existing (internal) bonuses.
+   * Mevcut (içsel) bonus listesini getir.
    */
   const fetchBonuses = async (token) => {
     try {
@@ -156,7 +156,7 @@ function BonusesManagement() {
   };
 
   /**
-   * Fetch external bonuses if needed for referencing in "partnerBonusId".
+   * İsteğe bağlı partner bonus referansı için dış bonusları getir.
    */
   const fetchExternalBonuses = async (token) => {
     try {
@@ -165,14 +165,14 @@ function BonusesManagement() {
       });
       setExternalBonuses(response.data);
     } catch (err) {
-      console.error("Error fetching external bonuses:", err);
-      // Do not block the page if external bonuses are missing.
+      console.error("Dış bonuslar getirilirken hata oluştu:", err);
+      // Dış bonuslar eksikse sayfayı engelleme.
       setError(extractErrorMessage(err));
     }
   };
 
   /**
-   * Fetch the list of portals (for the Portal dropdown).
+   * Portal listesini getir (Portal açılır menüsü için).
    */
   const fetchPortals = async (token) => {
     try {
@@ -186,9 +186,9 @@ function BonusesManagement() {
   };
 
   /**********************************************************
-   * CRUD HANDLERS
+   * CRUD İŞLEMLERİ
    **********************************************************/
-  // "Add Bonus" initiates a blank form
+  // "Bonus Ekle" boş form ile başlatır.
   const handleAddBonus = () => {
     setCurrentBonus({
       bonusId: null,
@@ -205,12 +205,12 @@ function BonusesManagement() {
     setDialogOpen(true);
   };
 
-  // Edit an existing bonus
+  // Mevcut bonusu düzenle.
   const handleEditBonus = (bonus) => {
     setCurrentBonus(bonus);
     setValidationAttempted(false);
 
-    // Filter external bonuses if bonus type is available.
+    // Bonus türüne göre dış bonusları filtrele.
     if (bonus.bonusType) {
       const filtered = externalBonuses.filter(
         (ext) => parseInt(ext.type, 10) === parseInt(bonus.bonusType, 10)
@@ -223,7 +223,7 @@ function BonusesManagement() {
     setDialogOpen(true);
   };
 
-  // Delete an existing bonus
+  // Mevcut bonusu sil.
   const handleDeleteBonus = async (bonusId) => {
     try {
       await axios.delete(`${BONUSES_API}/${bonusId}`, {
@@ -231,12 +231,12 @@ function BonusesManagement() {
       });
       setBonuses((prev) => prev.filter((b) => b.bonusId !== bonusId));
     } catch (err) {
-      console.error("Error deleting bonus:", err);
+      console.error("Bonus silinirken hata oluştu:", err);
       setError(extractErrorMessage(err));
     }
   };
 
-  // Validate fields before saving
+  // Kaydetmeden önce alanları doğrula.
   const isFieldEmpty = (fieldValue) =>
     fieldValue === undefined || fieldValue === null || fieldValue.toString().trim() === "";
 
@@ -248,7 +248,7 @@ function BonusesManagement() {
     const { name, description, portalId, maxAmount, percentage, bonusType, partnerBonusId } =
       currentBonus;
 
-    // 1. Check required fields.
+    // 1. Gerekli alanları kontrol et.
     if (
       isFieldEmpty(name) ||
       isFieldEmpty(description) ||
@@ -259,7 +259,7 @@ function BonusesManagement() {
     ) {
       return;
     }
-    // 2. If external bonuses are available, ensure partnerBonusId is provided.
+    // 2. Dış bonuslar varsa, partnerBonusId'nin doldurulması gereklidir.
     if (filteredExternalBonuses.length > 0 && isFieldEmpty(partnerBonusId)) {
       return;
     }
@@ -268,13 +268,13 @@ function BonusesManagement() {
       const token = sessionStorage.getItem("token");
 
       if (currentBonus.bonusId) {
-        // Update existing bonus.
+        // Mevcut bonusu güncelle.
         const res = await axios.put(`${BONUSES_API}/${currentBonus.bonusId}`, currentBonus, {
           headers: { Authorization: token },
         });
         setBonuses((prev) => prev.map((b) => (b.bonusId === currentBonus.bonusId ? res.data : b)));
       } else {
-        // Create new bonus.
+        // Yeni bonus oluştur.
         const res = await axios.post(BONUSES_API, currentBonus, {
           headers: { Authorization: token },
         });
@@ -285,46 +285,46 @@ function BonusesManagement() {
       setCurrentBonus(null);
       setValidationAttempted(false);
     } catch (err) {
-      console.error("Error saving bonus:", err);
+      console.error("Bonus kaydedilirken hata oluştu:", err);
       setError(extractErrorMessage(err));
     }
   };
 
   /**********************************************************
-   * TABLE DEFINITIONS
+   * TABLO TANIMLAMALARI
    **********************************************************/
   const bonusColumns = [
-    { Header: "Bonus ID", accessor: "bonusId" },
-    { Header: "Name", accessor: "name" },
-    { Header: "Description", accessor: "description" },
-    { Header: "Portal ID", accessor: "portalId" },
+    { Header: "Bonus Kimliği", accessor: "bonusId" },
+    { Header: "İsim", accessor: "name" },
+    { Header: "Açıklama", accessor: "description" },
+    { Header: "Portal Kimliği", accessor: "portalId" },
     {
-      Header: "Max Amount",
+      Header: "Maksimum Miktar",
       accessor: "maxAmount",
       Cell: ({ value }) => (value ? `$${value.toLocaleString()}` : "$0"),
     },
     {
-      Header: "Percentage",
+      Header: "Yüzde",
       accessor: "percentage",
       Cell: ({ value }) => (value ? `${value}%` : "0%"),
     },
-    { Header: "Bonus Type", accessor: "bonusType" },
+    { Header: "Bonus Türü", accessor: "bonusType" },
     {
-      Header: "Icon",
+      Header: "İkon",
       accessor: "iconImageBase64",
       Cell: ({ value }) =>
         value ? (
           <img
             src={`data:image/png;base64,${value}`}
-            alt="Bonus Icon"
+            alt="Bonus İkon Önizlemesi"
             style={{ width: "40px", height: "40px" }}
           />
         ) : (
-          "No Icon"
+          "İkon Yok"
         ),
     },
     {
-      Header: "Actions",
+      Header: "İşlemler",
       accessor: "actions",
       Cell: (cellProps) => (
         <ActionMenu
@@ -336,7 +336,7 @@ function BonusesManagement() {
     },
   ];
 
-  // Transform bonuses data into rows for DataTable.
+  // Bonus verilerini DataTable satırlarına dönüştür.
   const bonusRows = bonuses.map((b) => ({
     bonusId: b.bonusId,
     name: b.name,
@@ -366,7 +366,7 @@ function BonusesManagement() {
       <DashboardNavbar />
       <MDBox pt={6} pb={3}>
         <Grid container spacing={6}>
-          {/* Internal Bonuses Table */}
+          {/* İçsel Bonuslar Tablosu */}
           <Grid item xs={12}>
             <Card>
               <MDBox
@@ -383,10 +383,10 @@ function BonusesManagement() {
                 coloredShadow="info"
               >
                 <MDTypography variant="h6" color="white">
-                  Bonuses
+                  Bonuslar
                 </MDTypography>
                 <Button variant="contained" color="primary" onClick={handleAddBonus}>
-                  Add Bonus
+                  Bonus Ekle
                 </Button>
               </MDBox>
               <MDBox pt={3}>
@@ -404,13 +404,13 @@ function BonusesManagement() {
       </MDBox>
       <Footer />
 
-      {/* CREATE / EDIT BONUS DIALOG */}
+      {/* BONUS OLUŞTUR / DÜZENLE DİYALOĞU */}
       <Dialog open={isDialogOpen} onClose={() => setDialogOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>{currentBonus?.bonusId ? "Edit Bonus" : "Add Bonus"}</DialogTitle>
+        <DialogTitle>{currentBonus?.bonusId ? "Bonus Düzenle" : "Bonus Ekle"}</DialogTitle>
         <DialogContent>
-          {/* NAME */}
+          {/* İSİM */}
           <TextField
-            label="Name"
+            label="İsim"
             fullWidth
             margin="normal"
             variant="outlined"
@@ -423,14 +423,14 @@ function BonusesManagement() {
             helperText={
               validationAttempted &&
               (isFieldEmpty(currentBonus?.name) || currentBonus?.name.trim() === "")
-                ? "Name is required."
+                ? "İsim gereklidir."
                 : ""
             }
           />
 
-          {/* DESCRIPTION */}
+          {/* AÇIKLAMA */}
           <TextField
-            label="Description"
+            label="Açıklama"
             fullWidth
             margin="normal"
             variant="outlined"
@@ -443,12 +443,12 @@ function BonusesManagement() {
             helperText={
               validationAttempted &&
               (isFieldEmpty(currentBonus?.description) || currentBonus?.description.trim() === "")
-                ? "Description is required."
+                ? "Açıklama gereklidir."
                 : ""
             }
           />
 
-          {/* PORTAL SELECT */}
+          {/* PORTAL SEÇİMİ */}
           <FormControl
             fullWidth
             margin="normal"
@@ -470,14 +470,14 @@ function BonusesManagement() {
             </Select>
             {validationAttempted && isFieldEmpty(currentBonus?.portalId) && (
               <MDTypography variant="caption" color="error">
-                Portal is required.
+                Portal gereklidir.
               </MDTypography>
             )}
           </FormControl>
 
-          {/* MAX AMOUNT */}
+          {/* MAKSİMUM MİKTAR */}
           <TextField
-            label="Max Amount"
+            label="Maksimum Miktar"
             fullWidth
             margin="normal"
             variant="outlined"
@@ -497,14 +497,14 @@ function BonusesManagement() {
             }
             helperText={
               validationAttempted && (currentBonus?.maxAmount === "" || currentBonus?.maxAmount < 0)
-                ? "Max Amount is required and must be positive."
-                : "Enter a positive number for max amount."
+                ? "Maksimum Miktar gereklidir ve pozitif olmalıdır."
+                : "Maksimum miktar için pozitif bir sayı girin."
             }
           />
 
-          {/* PERCENTAGE */}
+          {/* YÜZDE */}
           <TextField
-            label="Percentage"
+            label="Yüzde"
             fullWidth
             margin="normal"
             variant="outlined"
@@ -530,19 +530,19 @@ function BonusesManagement() {
               (currentBonus?.percentage === "" ||
                 currentBonus?.percentage < 0 ||
                 currentBonus?.percentage > 100)
-                ? "Percentage is required and must be between 0 and 100."
-                : "Enter a value between 0 and 100."
+                ? "Yüzde gereklidir ve 0 ile 100 arasında olmalıdır."
+                : "0 ile 100 arasında bir değer girin."
             }
           />
 
-          {/* BONUS TYPE */}
+          {/* BONUS TÜRÜ */}
           <FormControl
             fullWidth
             variant="outlined"
             margin="normal"
             error={validationAttempted && isFieldEmpty(currentBonus?.bonusType)}
           >
-            <InputLabel id="bonus-type-label">Bonus Type</InputLabel>
+            <InputLabel id="bonus-type-label">Bonus Türü</InputLabel>
             <Select
               labelId="bonus-type-label"
               value={currentBonus?.bonusType || ""}
@@ -558,7 +558,7 @@ function BonusesManagement() {
                 );
                 setFilteredExternalBonuses(filtered);
               }}
-              label="Bonus Type"
+              label="Bonus Türü"
             >
               <MenuItem value="2">WAGERING_BONUS</MenuItem>
               <MenuItem value="5">FREE_BET</MenuItem>
@@ -566,12 +566,12 @@ function BonusesManagement() {
             </Select>
             {validationAttempted && isFieldEmpty(currentBonus?.bonusType) && (
               <MDTypography variant="caption" color="error">
-                Bonus Type is required.
+                Bonus Türü gereklidir.
               </MDTypography>
             )}
           </FormControl>
 
-          {/* CONDITIONAL PARENT BONUS SELECT */}
+          {/* KOŞULLU ANA BONUS SEÇİMİ */}
           {filteredExternalBonuses.length > 0 && (
             <FormControl
               fullWidth
@@ -579,14 +579,14 @@ function BonusesManagement() {
               margin="normal"
               error={validationAttempted && isFieldEmpty(currentBonus?.partnerBonusId)}
             >
-              <InputLabel id="parent-bonus-label">Parent Bonus</InputLabel>
+              <InputLabel id="parent-bonus-label">Ana Bonus</InputLabel>
               <Select
                 labelId="parent-bonus-label"
                 value={currentBonus?.partnerBonusId || ""}
                 onChange={(e) =>
                   setCurrentBonus({ ...currentBonus, partnerBonusId: e.target.value })
                 }
-                label="Parent Bonus"
+                label="Ana Bonus"
               >
                 {filteredExternalBonuses.map((eb) => (
                   <MenuItem key={eb.id} value={eb.id}>
@@ -596,13 +596,13 @@ function BonusesManagement() {
               </Select>
               {validationAttempted && isFieldEmpty(currentBonus?.partnerBonusId) && (
                 <MDTypography variant="caption" color="error">
-                  Parent Bonus is required.
+                  Ana Bonus gereklidir.
                 </MDTypography>
               )}
             </FormControl>
           )}
 
-          {/* IMAGE UPLOAD */}
+          {/* RESİM YÜKLEME */}
           <input
             type="file"
             accept="image/png, image/gif"
@@ -618,26 +618,26 @@ function BonusesManagement() {
             }}
           />
 
-          {/* Preview uploaded image */}
+          {/* Yüklenen resmin önizlemesi */}
           {currentBonus?.iconImageBase64 && (
             <img
               src={`data:image/png;base64,${currentBonus.iconImageBase64}`}
-              alt="bonus icon preview"
+              alt="Bonus İkon Önizlemesi"
               style={{ width: "80px", height: "80px", marginTop: "1rem" }}
             />
           )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDialogOpen(false)} color="secondary">
-            Cancel
+            İptal
           </Button>
           <Button onClick={handleSaveBonus} color="primary" variant="contained">
-            Save
+            Kaydet
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Snackbar for error notifications */}
+      {/* Hata bildirimleri için Snackbar */}
       <Snackbar
         open={!!error}
         autoHideDuration={6000}

@@ -26,7 +26,7 @@ import {
   Alert,
 } from "@mui/material";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
-import DeleteIcon from "@mui/icons-material/Delete"; // New import
+import DeleteIcon from "@mui/icons-material/Delete";
 
 // Custom components
 import MDBox from "components/MDBox";
@@ -38,6 +38,39 @@ import DataTable from "examples/Tables/DataTable";
 
 // Constants
 const BONUSES_API = "http://localhost:8080/api/bonuses";
+
+// Translation mappings for ruleKeys and ruleOperators.
+const RULE_TRANSLATIONS = {
+  ruleKeys: {
+    ACCOUNT_STATUS: "Hesap Durumu",
+    DEPOSIT_AMOUNT: "Para Yatırma Miktarı",
+    DEPOSIT_AMOUNT_RANGE: "Para Yatırma Miktarı Aralığı",
+    TRANSACTION_AFTER_DEPOSIT: "Para Yatırmadan Sonra İşlem",
+    NO_EXISTING_BONUS: "Mevcut Bonus Yok",
+    NO_PROFIT_LAST_X_HOURS: "Son X Saat Kâr Yok",
+    DEPOSIT_COUNT: "Para Yatırma Sayısı",
+    WITHDRAWAL_COUNT: "Para Çekme Sayısı",
+    WITHDRAWAL_TIME: "Para Çekme Zamanı",
+    BONUS_PERCENTAGE: "Bonus Yüzdesi",
+    BONUS_FREQUENCY: "Bonus Sıklığı",
+    MIN_LOSS_AMOUNT: "Minimum Zarar Miktarı",
+    PAYMENT_METHOD: "Ödeme Yöntemi",
+    MIN_DEPOSIT_AMOUNT: "Minimum Para Yatırma Miktarı",
+  },
+  ruleOperators: {
+    IS_TRUE: "DOĞRU",
+    IS_FALSE: "YANLIŞ",
+    GREATER_THAN: "BÜYÜK",
+    LESS_THAN: "KÜÇÜK",
+    GREATER_THAN_OR_EQUALS: "BÜYÜK VEYA EŞİT",
+    EQUALS: "EŞİT",
+    NOT_EQUALS: "EŞİT DEĞİL",
+    RANGE: "ARALIK",
+  },
+};
+
+const translateRuleKey = (key) => RULE_TRANSLATIONS.ruleKeys[key] || key;
+const translateRuleOperator = (operator) => RULE_TRANSLATIONS.ruleOperators[operator] || operator;
 
 /**
  * ACTION MENU COMPONENT
@@ -64,8 +97,8 @@ function ActionMenu({ rule, onEdit, onDelete }) {
         <MoreVertIcon />
       </IconButton>
       <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose} keepMounted>
-        <MenuItem onClick={handleEditClick}>Edit</MenuItem>
-        <MenuItem onClick={handleDeleteClick}>Delete</MenuItem>
+        <MenuItem onClick={handleEditClick}>Düzenle</MenuItem>
+        <MenuItem onClick={handleDeleteClick}>Sil</MenuItem>
       </Menu>
     </div>
   );
@@ -133,7 +166,7 @@ function BonusDetails() {
     const fetchBonusDetails = async () => {
       const token = sessionStorage.getItem("token");
       if (!token) {
-        setError("Authorization token not found.");
+        setError("Yetkilendirme token'ı bulunamadı.");
         setLoading(false);
         return;
       }
@@ -152,7 +185,7 @@ function BonusDetails() {
         setBonus(fetchedBonus);
         setRules(mappedRules);
       } catch (err) {
-        console.error("Bonus details error:", err);
+        console.error("Bonus detayları hatası:", err);
         setError(extractErrorMessage(err));
       } finally {
         setLoading(false);
@@ -166,7 +199,7 @@ function BonusDetails() {
     const fetchRuleCombinations = async () => {
       const token = sessionStorage.getItem("token");
       if (!token) {
-        setError("Authorization token not found.");
+        setError("Yetkilendirme token'ı bulunamadı.");
         return;
       }
       try {
@@ -175,23 +208,27 @@ function BonusDetails() {
         });
         setRuleCombinations(res.data);
       } catch (err) {
-        console.error("Rule combinations error:", err);
+        console.error("Kural kombinasyonları hatası:", err);
       }
     };
     fetchRuleCombinations();
   }, []);
 
-  // Update valid operators and value type when currentRule changes
   useEffect(() => {
     if (currentRule && currentRule.ruleKey) {
-      const combination = ruleCombinations.find((rc) => rc.ruleKey === currentRule.ruleKey);
+      // Use a case-insensitive comparison for ruleKey.
+      const currentRuleKey = String(currentRule.ruleKey).toUpperCase();
+      const combination = ruleCombinations.find(
+        (rc) => String(rc.ruleKey).toUpperCase() === currentRuleKey
+      );
       if (combination) {
+        // Always use the full validOperators array from the API.
         setValidOperators(combination.validOperators);
         setValueType(combination.valueType);
-        // For RANGE rules, only auto-populate an empty row if we are creating a new rule.
+        // For RANGE rules, auto-populate an empty row only when adding a new rule.
         if (
           combination.valueType === "RANGE" &&
-          !currentRule.ruleId && // not editing
+          !currentRule.ruleId &&
           (!currentRule.rangeRules || currentRule.rangeRules.length === 0)
         ) {
           setCurrentRule((prev) => ({
@@ -200,17 +237,19 @@ function BonusDetails() {
           }));
         }
       } else {
-        setValidOperators([]);
-        setValueType("");
+        // If no combination is found (should not typically happen in edit mode),
+        // preserve the current operator.
+        if (currentRule.ruleId && currentRule.ruleOperator) {
+          setValidOperators([currentRule.ruleOperator]);
+          setValueType(typeof currentRule.ruleValue === "boolean" ? "BOOLEAN" : "NUMBER");
+        }
       }
     } else {
-      setSelectedRuleKey("");
       setValidOperators([]);
       setValueType("");
     }
     setFormError("");
   }, [currentRule, ruleCombinations]);
-
   // Range Rule handlers
   const handleAddRangeRule = () => {
     const newRangeRule = { minValue: "", maxValue: "", rewardValue: "" };
@@ -252,48 +291,47 @@ function BonusDetails() {
       });
       setRules((prevRules) => prevRules.filter((r) => r.ruleId !== ruleId));
     } catch (err) {
-      console.error("Error deleting rule:", err);
+      console.error("Kural silinirken hata oluştu:", err);
       setFormError(extractErrorMessage(err));
     }
   };
 
   const validateRule = () => {
-    if (!currentRule.ruleKey) return "Please select a Rule Key.";
-    if (!currentRule.ruleOperator) return "Please select an Operator.";
+    if (!currentRule.ruleKey) return "Lütfen bir Kural Anahtarı seçin.";
+    if (!currentRule.ruleOperator) return "Lütfen bir Operatör seçin.";
 
     const operatorOnly = ["IS_TRUE", "IS_FALSE"].includes(currentRule.ruleOperator);
 
     if (valueType === "BOOLEAN" && !operatorOnly) {
       if (typeof currentRule.ruleValue !== "boolean") {
-        return "Please set the boolean value (checked or unchecked).";
+        return "Lütfen boolean değeri ayarlayın (işaretli = Doğru, işaretsiz = Yanlış).";
       }
     }
 
     if (valueType === "NUMBER" && !operatorOnly) {
       if (currentRule.ruleValue === "" || isNaN(currentRule.ruleValue)) {
-        return "Please enter a valid number for the rule value.";
+        return "Lütfen kural değeri için geçerli bir sayı girin.";
       }
     }
 
     if (currentRule.ruleOrder === "" || isNaN(currentRule.ruleOrder)) {
-      return "Please enter a valid numeric value for Rule Order.";
+      return "Lütfen Kural Sırası için geçerli bir sayı girin.";
     }
 
-    // Optionally add validation for each range rule if valueType is RANGE
     if (valueType === "RANGE") {
       if (!currentRule.rangeRules || currentRule.rangeRules.length === 0) {
-        return "Please add at least one range rule.";
+        return "Lütfen en az bir aralık kuralı ekleyin.";
       }
       for (let i = 0; i < currentRule.rangeRules.length; i++) {
         const rr = currentRule.rangeRules[i];
         if (rr.minValue === "" || isNaN(rr.minValue)) {
-          return `Please enter a valid minimum value for range rule ${i + 1}.`;
+          return `Lütfen aralık kuralı ${i + 1} için geçerli bir minimum değer girin.`;
         }
         if (rr.maxValue === "" || isNaN(rr.maxValue)) {
-          return `Please enter a valid maximum value for range rule ${i + 1}.`;
+          return `Lütfen aralık kuralı ${i + 1} için geçerli bir maksimum değer girin.`;
         }
         if (rr.rewardValue === "" || isNaN(rr.rewardValue)) {
-          return `Please enter a valid reward value for range rule ${i + 1}.`;
+          return `Lütfen aralık kuralı ${i + 1} için geçerli bir ödül değeri girin.`;
         }
       }
     }
@@ -335,7 +373,7 @@ function BonusDetails() {
       setCurrentRule(null);
       setFormError("");
     } catch (err) {
-      console.error("Error saving rule:", err);
+      console.error("Kural kaydedilirken hata oluştu:", err);
       setFormError(extractErrorMessage(err));
     }
   };
@@ -357,7 +395,7 @@ function BonusDetails() {
       <DashboardLayout>
         <DashboardNavbar />
         <MDBox py={3} display="flex" justifyContent="center">
-          <MDTypography variant="h6">No bonus data available.</MDTypography>
+          <MDTypography variant="h6">Bonus verisi bulunamadı.</MDTypography>
         </MDBox>
         <Footer />
       </DashboardLayout>
@@ -365,12 +403,12 @@ function BonusDetails() {
   }
 
   const columns = [
-    { Header: "Rule Key", accessor: "ruleKey" },
-    { Header: "Operator", accessor: "ruleOperator" },
-    { Header: "Value", accessor: "ruleValue" },
-    { Header: "Order", accessor: "ruleOrder" },
+    { Header: "Kural Anahtarı", accessor: "ruleKey" },
+    { Header: "Operatör", accessor: "ruleOperator" },
+    { Header: "Değer", accessor: "ruleValue" },
+    { Header: "Sıra", accessor: "ruleOrder" },
     {
-      Header: "Actions",
+      Header: "İşlemler",
       accessor: "ruleId",
       Cell: (cellProps) => (
         <ActionsCell row={cellProps.row} onEdit={handleEditRule} onDelete={handleDeleteRule} />
@@ -379,11 +417,11 @@ function BonusDetails() {
   ];
 
   const rows = rules.map((rule) => ({
-    ruleKey: rule.ruleKey,
-    ruleOperator: rule.ruleOperator,
+    ruleKey: translateRuleKey(rule.ruleKey),
+    ruleOperator: translateRuleOperator(rule.ruleOperator),
     ruleValue:
-      rule.ruleValue !== null && rule.ruleValue !== undefined ? rule.ruleValue.toString() : "N/A",
-    ruleOrder: rule.ruleOrder !== undefined ? rule.ruleOrder : "0",
+      rule.ruleValue !== undefined && rule.ruleValue !== null ? rule.ruleValue.toString() : "N/A",
+    ruleOrder: rule.ruleOrder !== undefined && rule.ruleOrder !== null ? rule.ruleOrder : "0",
     ruleId: rule.ruleId,
     original: rule,
   }));
@@ -406,18 +444,18 @@ function BonusDetails() {
                 coloredShadow="info"
               >
                 <MDTypography variant="h4" color="white">
-                  {bonus.name || "Unnamed Bonus"}
+                  {bonus.name || "İsimsiz Bonus"}
                 </MDTypography>
               </MDBox>
 
               <MDBox p={3}>
-                <MDTypography variant="h6">Description</MDTypography>
+                <MDTypography variant="h6">Açıklama</MDTypography>
                 <MDTypography variant="body2" mb={2}>
-                  {bonus.description || "No description available."}
+                  {bonus.description || "Açıklama mevcut değil."}
                 </MDTypography>
 
                 <MDTypography variant="h6" mb={1}>
-                  Rules
+                  Kurallar
                 </MDTypography>
                 <DataTable
                   table={{ columns, rows }}
@@ -438,7 +476,6 @@ function BonusDetails() {
                         ruleOperator: "",
                         ruleValue: "",
                         ruleOrder: 0,
-                        // Initialize rangeRules if necessary
                         rangeRules: [],
                       });
                       setSelectedRuleKey("");
@@ -448,10 +485,10 @@ function BonusDetails() {
                       setFormError("");
                     }}
                   >
-                    Add Rule
+                    Kural Ekle
                   </Button>
                   <Button variant="contained" color="secondary" onClick={goBack}>
-                    Back
+                    Geri
                   </Button>
                 </MDBox>
               </MDBox>
@@ -461,9 +498,9 @@ function BonusDetails() {
       </MDBox>
       <Footer />
 
-      {/* Add/Edit Rule Dialog */}
+      {/* Kural Ekle/Düzenle Diyaloğu */}
       <Dialog open={isDialogOpen} onClose={() => setDialogOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>{currentRule?.ruleId ? "Edit Rule" : "Add Rule"}</DialogTitle>
+        <DialogTitle>{currentRule?.ruleId ? "Kuralı Düzenle" : "Kural Ekle"}</DialogTitle>
         <DialogContent>
           <Grid container spacing={2}>
             {formError && (
@@ -476,7 +513,7 @@ function BonusDetails() {
 
             <Grid item xs={12}>
               <FormControl fullWidth variant="outlined" margin="normal">
-                <InputLabel id="rule-key-label">Rule Key</InputLabel>
+                <InputLabel id="rule-key-label">Kural Anahtarı</InputLabel>
                 <Select
                   labelId="rule-key-label"
                   id="rule-key-select"
@@ -490,7 +527,6 @@ function BonusDetails() {
                       ruleOperator: "",
                       ruleValue: "",
                       ruleOrder: prev.ruleId ? prev.ruleOrder : 0,
-                      // If the new type is RANGE and we’re adding a new rule (no ruleId), initialize with one empty row.
                       rangeRules:
                         combination?.valueType === "RANGE"
                           ? prev.ruleId
@@ -503,14 +539,21 @@ function BonusDetails() {
                     setValueType(combination?.valueType || "");
                     setFormError("");
                   }}
-                  label="Rule Key"
+                  label="Kural Anahtarı"
                   disabled={Boolean(currentRule?.ruleId)}
                 >
                   {ruleCombinations.map((combination) => (
                     <MenuItem key={combination.ruleKey} value={combination.ruleKey}>
-                      {combination.ruleKey}
+                      {translateRuleKey(combination.ruleKey)}
                     </MenuItem>
                   ))}
+                  {currentRule &&
+                    currentRule.ruleKey &&
+                    !ruleCombinations.find((rc) => rc.ruleKey === currentRule.ruleKey) && (
+                      <MenuItem key={currentRule.ruleKey} value={currentRule.ruleKey}>
+                        {currentRule.ruleKey}
+                      </MenuItem>
+                    )}
                 </Select>
               </FormControl>
             </Grid>
@@ -522,7 +565,7 @@ function BonusDetails() {
                 margin="normal"
                 disabled={!validOperators.length}
               >
-                <InputLabel id="operator-label">Operator</InputLabel>
+                <InputLabel id="operator-label">Operatör</InputLabel>
                 <Select
                   labelId="operator-label"
                   id="operator-select"
@@ -537,11 +580,11 @@ function BonusDetails() {
                     }));
                     setFormError("");
                   }}
-                  label="Operator"
+                  label="Operatör"
                 >
                   {validOperators.map((operator) => (
                     <MenuItem key={operator} value={operator}>
-                      {operator}
+                      {translateRuleOperator(operator)}
                     </MenuItem>
                   ))}
                 </Select>
@@ -561,7 +604,7 @@ function BonusDetails() {
                         }
                       />
                     }
-                    label="Value (Checked = True, Unchecked = False)"
+                    label="Değer (İşaretli = Doğru, İşaretsiz = Yanlış)"
                   />
                 </Grid>
               )}
@@ -569,12 +612,16 @@ function BonusDetails() {
             {valueType === "NUMBER" && (
               <Grid item xs={12}>
                 <TextField
-                  label="Value"
+                  label="Değer"
                   type="number"
                   fullWidth
                   variant="outlined"
                   margin="normal"
-                  value={currentRule?.ruleValue || ""}
+                  value={
+                    currentRule?.ruleValue !== undefined && currentRule.ruleValue !== null
+                      ? currentRule.ruleValue
+                      : ""
+                  }
                   onChange={(e) => {
                     const numValue = parseFloat(e.target.value);
                     setCurrentRule((prev) => ({ ...prev, ruleValue: numValue }));
@@ -587,19 +634,23 @@ function BonusDetails() {
             {valueType === "RANGE" && (
               <>
                 <Grid item xs={12}>
-                  <MDTypography variant="h6">Range Rules</MDTypography>
+                  <MDTypography variant="h6">Aralık Kuralları</MDTypography>
                 </Grid>
                 {currentRule?.rangeRules &&
                   currentRule.rangeRules.map((rangeRule, index) => (
                     <Grid container spacing={2} key={index} alignItems="center">
                       <Grid item xs={4}>
                         <TextField
-                          label="Min Value"
+                          label="Minimum Değer"
                           type="number"
                           fullWidth
                           variant="outlined"
                           margin="normal"
-                          value={rangeRule.minValue || ""}
+                          value={
+                            rangeRule.minValue !== undefined && rangeRule.minValue !== null
+                              ? rangeRule.minValue
+                              : ""
+                          }
                           onChange={(e) =>
                             handleRangeRuleChange(index, "minValue", parseFloat(e.target.value))
                           }
@@ -607,12 +658,16 @@ function BonusDetails() {
                       </Grid>
                       <Grid item xs={4}>
                         <TextField
-                          label="Max Value"
+                          label="Maksimum Değer"
                           type="number"
                           fullWidth
                           variant="outlined"
                           margin="normal"
-                          value={rangeRule.maxValue || ""}
+                          value={
+                            rangeRule.maxValue !== undefined && rangeRule.maxValue !== null
+                              ? rangeRule.maxValue
+                              : ""
+                          }
                           onChange={(e) =>
                             handleRangeRuleChange(index, "maxValue", parseFloat(e.target.value))
                           }
@@ -620,12 +675,16 @@ function BonusDetails() {
                       </Grid>
                       <Grid item xs={3}>
                         <TextField
-                          label="Reward Value"
+                          label="Ödül Değeri"
                           type="number"
                           fullWidth
                           variant="outlined"
                           margin="normal"
-                          value={rangeRule.rewardValue || ""}
+                          value={
+                            rangeRule.rewardValue !== undefined && rangeRule.rewardValue !== null
+                              ? rangeRule.rewardValue
+                              : ""
+                          }
                           onChange={(e) =>
                             handleRangeRuleChange(index, "rewardValue", parseFloat(e.target.value))
                           }
@@ -640,7 +699,7 @@ function BonusDetails() {
                   ))}
                 <Grid item xs={12}>
                   <Button variant="contained" onClick={handleAddRangeRule}>
-                    Add Range Rule
+                    Aralık Kuralı Ekle
                   </Button>
                 </Grid>
               </>
@@ -648,12 +707,16 @@ function BonusDetails() {
 
             <Grid item xs={12}>
               <TextField
-                label="Rule Order"
+                label="Kural Sırası"
                 type="number"
                 fullWidth
                 variant="outlined"
                 margin="normal"
-                value={currentRule?.ruleOrder || ""}
+                value={
+                  currentRule?.ruleOrder !== undefined && currentRule.ruleOrder !== null
+                    ? currentRule.ruleOrder
+                    : ""
+                }
                 onChange={(e) => {
                   const orderValue = parseInt(e.target.value, 10);
                   setCurrentRule((prev) => ({
@@ -674,15 +737,15 @@ function BonusDetails() {
             }}
             color="secondary"
           >
-            Cancel
+            İptal
           </Button>
           <Button onClick={handleSaveRule} color="primary" variant="contained">
-            Save
+            Kaydet
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Snackbar for error messages */}
+      {/* Hata mesajları için Snackbar */}
       <Snackbar
         open={!!error || !!formError}
         autoHideDuration={6000}

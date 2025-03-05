@@ -22,7 +22,7 @@ import PortalFormModal from "./PortalFormModal";
 const PORTAL_API = "http://localhost:8080/api/portal";
 
 /**
- * Action menu for each portal row.
+ * Her portal satırı için aksiyon menüsü.
  */
 function ActionMenu({ portalId }) {
   const [anchorEl, setAnchorEl] = useState(null);
@@ -48,7 +48,7 @@ function ActionMenu({ portalId }) {
         anchorOrigin={{ vertical: "top", horizontal: "right" }}
         transformOrigin={{ vertical: "top", horizontal: "right" }}
       >
-        <MenuItem onClick={handleRequestLog}>Request Log</MenuItem>
+        <MenuItem onClick={handleRequestLog}>Bonus talepleri</MenuItem>
       </Menu>
     </div>
   );
@@ -59,7 +59,7 @@ ActionMenu.propTypes = {
 };
 
 /**
- * Cell renderer for the Actions column.
+ * Actions sütunu için hücre render edici.
  */
 function ActionsCell({ row }) {
   return <ActionMenu portalId={row.original.id} />;
@@ -74,7 +74,7 @@ ActionsCell.propTypes = {
 };
 
 /**
- * Main Portal Management component.
+ * Ana Portal Yönetimi bileşeni.
  */
 function PortalManagement() {
   const [portals, setPortals] = useState([]);
@@ -103,10 +103,10 @@ function PortalManagement() {
   };
 
   const columns = [
-    { Header: "Domain Name", accessor: "domainName" },
-    { Header: "Portal Type", accessor: "portalType" },
-    { Header: "API Username", accessor: "apiUsername" },
-    { Header: "Actions", accessor: "id", Cell: ActionsCell },
+    { Header: "domain ismi", accessor: "domainName" },
+    { Header: "Portal Türü", accessor: "portalType" },
+    { Header: "API Kullanıcı ismi", accessor: "apiUsername" },
+    { Header: "İşlemler", accessor: "id", Cell: ActionsCell },
   ];
 
   const rows = portals.map((portal) => ({
@@ -137,10 +137,10 @@ function PortalManagement() {
                 coloredShadow="info"
               >
                 <MDTypography variant="h6" color="white">
-                  Portals
+                  Portallar
                 </MDTypography>
                 <MDButton color="info" onClick={() => setShowModal(true)}>
-                  Add New Portal
+                  Yeni Portal Ekle
                 </MDButton>
               </MDBox>
               <MDBox pt={3}>
