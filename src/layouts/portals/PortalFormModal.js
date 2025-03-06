@@ -52,7 +52,7 @@ function PortalFormModal({ onClose, onSave }) {
     };
 
     try {
-      const response = await axios.post("http://localhost:8080/api/portal", portalData, {
+      const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/portal`, portalData, {
         headers: {
           Authorization: `${sessionStorage.getItem("token")}`,
           "Content-Type": "application/json",

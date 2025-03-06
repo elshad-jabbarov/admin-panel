@@ -19,7 +19,7 @@ import Footer from "examples/Footer";
 // Portal form modal
 import PortalFormModal from "./PortalFormModal";
 
-const PORTAL_API = "http://localhost:8080/api/portal";
+const PORTAL_API = `${process.env.REACT_APP_API_URL}/api/portal`;
 
 /**
  * Her portal satırı için aksiyon menüsü.

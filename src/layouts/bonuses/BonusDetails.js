@@ -37,7 +37,7 @@ import Footer from "examples/Footer";
 import DataTable from "examples/Tables/DataTable";
 
 // Constants
-const BONUSES_API = "http://localhost:8080/api/bonuses";
+const BONUSES_API = `${process.env.REACT_APP_API_URL}/api/bonuses`;
 
 // Translation mappings for ruleKeys and ruleOperators.
 const RULE_TRANSLATIONS = {

@@ -44,9 +44,12 @@ function PortalLogs() {
 
   const fetchLogs = async () => {
     try {
-      const response = await axios.get(`http://localhost:8080/api/portal/bonuses/${id}`, {
-        headers: { Authorization: sessionStorage.getItem("token") },
-      });
+      const response = await axios.get(
+        `${process.env.REACT_APP_API_URL}/api/portal/bonuses/${id}`,
+        {
+          headers: { Authorization: sessionStorage.getItem("token") },
+        }
+      );
       setLogs(response.data);
     } catch (err) {
       console.error("Error fetching logs:", err);
@@ -56,7 +59,7 @@ function PortalLogs() {
 
   const fetchBonuses = async () => {
     try {
-      const response = await axios.get("http://localhost:8080/api/bonuses", {
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/api/bonuses`, {
         headers: { Authorization: sessionStorage.getItem("token") },
       });
       setBonuses(response.data);
@@ -85,7 +88,7 @@ function PortalLogs() {
     }
     try {
       const response = await axios.post(
-        "http://localhost:8080/api/bonuses/award",
+        `${process.env.REACT_APP_API_URL}/api/bonuses/award`,
         {
           playerId: parseInt(playerId, 10),
           amount: parseFloat(amount),

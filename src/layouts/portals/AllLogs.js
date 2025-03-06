@@ -23,7 +23,7 @@ function AllLogs() {
 
   const fetchAllLogs = async () => {
     try {
-      const response = await axios.get("http://localhost:8080/api/portal/logs", {
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/api/portal/logs`, {
         headers: { Authorization: sessionStorage.getItem("token") },
       });
       setLogs(response.data);

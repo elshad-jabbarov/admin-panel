@@ -32,8 +32,8 @@ import DashboardNavbar from "examples/Navbars/DashboardNavbar";
 import Footer from "examples/Footer";
 
 // API Endpoints
-const BONUSES_API = "http://localhost:8080/api/bonuses";
-const PORTALS_API = "http://localhost:8080/api/portal";
+const BONUSES_API = `${process.env.REACT_APP_API_URL}/api/bonuses`;
+const PORTALS_API = `${process.env.REACT_APP_API_URL}/api/portal`;
 
 /**
  * Bonus satırları için aksiyon menüsü:
@@ -99,6 +99,24 @@ ActionMenu.propTypes = {
   }).isRequired,
   onEdit: PropTypes.func.isRequired,
   onDelete: PropTypes.func.isRequired,
+};
+
+/**
+ * Bonus Icon Cell Component
+ */
+const BonusIconCell = ({ value }) =>
+  value ? (
+    <img
+      src={`data:image/png;base64,${value}`}
+      alt="Bonus İkon Önizlemesi"
+      style={{ width: "40px", height: "40px" }}
+    />
+  ) : (
+    "İkon Yok"
+  );
+
+BonusIconCell.propTypes = {
+  value: PropTypes.string,
 };
 
 /**
@@ -312,16 +330,7 @@ function BonusesManagement() {
     {
       Header: "İkon",
       accessor: "iconImageBase64",
-      Cell: ({ value }) =>
-        value ? (
-          <img
-            src={`data:image/png;base64,${value}`}
-            alt="Bonus İkon Önizlemesi"
-            style={{ width: "40px", height: "40px" }}
-          />
-        ) : (
-          "İkon Yok"
-        ),
+      Cell: BonusIconCell,
     },
     {
       Header: "İşlemler",
