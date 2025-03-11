@@ -341,27 +341,42 @@ function BonusDetails() {
 
   const handleSaveRule = async () => {
     if (!currentRule) return;
+
+    // Validate the rule (assuming this function exists)
     const validationMsg = validateRule();
     if (validationMsg) {
       setFormError(validationMsg);
       return;
     }
 
-    const payload = { ...currentRule };
-    if (["IS_TRUE", "IS_FALSE"].includes(currentRule.ruleOperator)) {
+    // Extract original values if available, otherwise use currentRule values
+    const originalRule = currentRule.original || {};
+    const payload = {
+      ...currentRule,
+      ruleKey: originalRule.ruleKey || currentRule.ruleKey,
+      ruleOperator: originalRule.ruleOperator || currentRule.ruleOperator,
+    };
+
+    // Remove ruleValue for specific operators if needed
+    if (["IS_TRUE", "IS_FALSE"].includes(payload.ruleOperator)) {
       delete payload.ruleValue;
     }
 
+    // Exclude the 'original' property from the payload
+    const { original, ...payloadToSend } = payload;
+
     const token = sessionStorage.getItem("token");
     const isEditing = !!currentRule.ruleId;
+
     try {
       const res = isEditing
-        ? await axios.put(`${BONUSES_API}/${bonusId}/rules/${currentRule.ruleId}`, payload, {
+        ? await axios.put(`${BONUSES_API}/${bonusId}/rules/${currentRule.ruleId}`, payloadToSend, {
             headers: { Authorization: token },
           })
-        : await axios.post(`${BONUSES_API}/${bonusId}/rules`, payload, {
+        : await axios.post(`${BONUSES_API}/${bonusId}/rules`, payloadToSend, {
             headers: { Authorization: token },
           });
+
       if (isEditing) {
         setRules((prevRules) =>
           prevRules.map((r) => (r.ruleId === currentRule.ruleId ? res.data : r))
@@ -369,15 +384,15 @@ function BonusDetails() {
       } else {
         setRules((prevRules) => [...prevRules, { ...res.data, ruleId: res.data.id }]);
       }
+
       setDialogOpen(false);
       setCurrentRule(null);
       setFormError("");
     } catch (err) {
-      console.error("Kural kaydedilirken hata oluştu:", err);
+      console.error("Error saving rule:", err);
       setFormError(extractErrorMessage(err));
     }
   };
-
   if (loading) {
     return (
       <DashboardLayout>
